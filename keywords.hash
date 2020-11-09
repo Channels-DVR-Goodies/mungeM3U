@@ -1,0 +1,37 @@
+//
+// Created by paul on 1/14/20.
+//
+
+prefix = "Keyword"
+
+# the character mapping array
+# array starts out mapping one-to-one, i.e. input = output
+#
+mappings:
+{
+    # make the generated hashes case-insensitive
+    ignoreCase = false
+
+    # mark these characters as 'kKeywordSeparator'
+    Separator = " "
+    # end of line
+    EOL = "\n\r"
+    # start of the trailing name
+    Comma = ","
+    # mark these characters as 'kKeywordAssign'
+    Assign = "="
+    # beginning and end of a string
+    Quote = "\""
+}
+
+# the strings to hash into the enum
+# if there's a comma, first string is for symbol, second is to hash
+#
+keywords = [
+    "EXTM3U,#EXTM3U",
+    "EXTINF,#EXTINF:-1",
+    "ID,tvg-id",
+    "Name,tvg-name",
+    "Logo,tvg-logo",
+    "Group,group-title"
+]

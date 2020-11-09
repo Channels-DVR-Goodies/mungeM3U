@@ -1,0 +1,28 @@
+//
+//
+
+prefix = "Name"
+
+# the character mapping array
+# array starts out mapping one-to-one, i.e. input = output
+#
+mappings:
+{
+    # make the generated hashes case-insensitive
+    ignoreCase = true
+
+    # mark these characters as 'kKeywordSeparator'
+    Separator = " :|-"
+}
+
+# the strings to hash into the enum
+# if there's a comma, first string is for symbol, second is to hash
+#
+keywords = [
+    "VIP",
+    "SD",
+    "HD",
+    "FHD",
+    "HDMix,HD/FHD",
+    "FHDMix,FHD/HD"
+]
