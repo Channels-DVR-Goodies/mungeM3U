@@ -73,7 +73,7 @@ tServiceType decodeService( char * service )
     unsigned char * p = (unsigned char *) service;
     unsigned int serviceType = *p++;
     serviceType = (serviceType << 8) | *p++;
-    serviceType = (serviceType << 8) | *p++;
+    serviceType = (serviceType << 8) | *p;
     return (tServiceType)serviceType;
 }
 

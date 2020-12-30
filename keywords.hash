@@ -25,7 +25,7 @@ mappings:
 }
 
 # the strings to hash into the enum
-# if there's a comma, first string is for symbol, second is to hash
+# if there is a comma, first string is for symbol, second is to hash
 #
 keywords = [
     "EXTM3U,#EXTM3U",

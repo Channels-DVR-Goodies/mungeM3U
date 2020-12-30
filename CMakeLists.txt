@@ -28,6 +28,6 @@ add_executable( mungeFCC
 
 add_executable( mungeM3U
                 mungeM3U.c mungeM3U.h
-                argtable3.c argtable3.h countryCodes.h)
+                argtable3.c argtable3.h countryCodes.h buffer.c buffer.h)
 
 target_link_libraries(mungeM3U m)

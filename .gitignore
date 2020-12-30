@@ -54,3 +54,4 @@ dkms.conf
 # project specific
 /keywords.h
 /mungeFCC/fccdata.txt
+/name.h

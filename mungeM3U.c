@@ -1,26 +1,14 @@
 /**
-   Copyright &copy; Paul Chambers, 2019.
+   Copyright &copy; Paul Chambers, 2020.
 
    @ToDo Switch to UTF-8 string handling, rather than relying on ASCII backwards-compatibility
 */
 
-#define _XOPEN_SOURCE 700
-#include <features.h>
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <limits.h>
-#include <sys/types.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
-#include <libgen.h> // for basename()
-#include <pwd.h>
-#define __USE_MISC  // dirent.d_type is linux-specific, apparently
-#include <dirent.h>
-#define __USE_GNU
-#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
@@ -29,7 +17,7 @@
 #include <stdbool.h>
 
 #include "argtable3.h"
-#include "mungeM3U.h"
+#include "buffer.h"
 
 #include "keywords.h"
 #include "name.h"
@@ -38,56 +26,366 @@ const char * gExecutableName;
 FILE *       gOutputFile;
 int          gDebugLevel = 0;
 
+typedef unsigned long tHash;
+
 typedef enum {
     rUnknown = 0,
-    rMixed,
     rSD,
     rHD,
     rFHD,
-    rUHD
+    rMixedHD,
+    rUHD,
+    rMax
 } tResolution;
 
+const char * resolutionAsString[] = {
+    [rUnknown]  = "Unknown",
+    [rSD]       = "SD",
+    [rHD]       = "HD",
+    [rFHD]      = "FHD",
+    [rMixedHD]  = "Mixed HD",
+    [rUHD]      = "UHD"
+};
+
+typedef enum {
+    genreUnknown = 0,
+    genreEntertainment,
+    genreMovies,
+    genreNews,
+    genreDocumentary,
+    genreMusic,
+    genreKids,
+    genreSports,
+    genreReligious,
+    genreMax
+} tGenre;
+
+const char * genreAsString[] = {
+    [genreUnknown]       = "Unknown",
+    [genreEntertainment] = "Entertainment",
+    [genreMovies]        = "Movies",
+    [genreNews]          = "News",
+    [genreDocumentary]   = "Documentary",
+    [genreMusic]         = "Music",
+    [genreKids]          = "Kids",
+    [genreSports]        = "Sports",
+    [genreReligious]     = "Religious"
+};
+
+
+
+typedef enum {
+    countryUnknown = 0,
+    countryMultiple,
+    countryAfghanistan,
+    countryAfrica,
+    countryAlbania,
+    countryArab,
+    countryArgentina,
+    countryArmenia,
+    countryAustralia,
+    countryBangla,
+    countryBelgium,
+    countryBrazil,
+    countryBulgaria,
+    countryCanada,
+    countryCaribbean,
+    countryChina,
+    countryCzech,
+    countryExYu,
+    countryFrance,
+    countryGerman,
+    countryGreece,
+    countryHungary,
+    countryIndia,
+    countryIran,
+    countryIreland,
+    countryItaly,
+    countryJapan,
+    countryKannada,
+    countryLatin,
+    countryMalayalam,
+    countryMarathi,
+    countryNetherlands,
+    countryNorway,
+    countryPakistan,
+    countryPhilippines,
+    countryPoland,
+    countryPortugal,
+    countryRomania,
+    countryRussia,
+    countrySinhala,
+    countrySpain,
+    countrySweden,
+    countrySwitzerland,
+    countryTamil,
+    countryTelugu,
+    countryThailand,
+    countryTurkey,
+    countryUK,
+    countryUSA,
+    countryVietnam,
+    countryMax
+} tCountry;
+
+const char * countryAsString[] = {
+    [countryUnknown]     = "Unknown",
+    [countryMultiple]    = "Multiple",
+    [countryAfghanistan] = "Afghanistan",
+    [countryAfrica]      = "Africa",
+    [countryAlbania]     = "Albania",
+    [countryArab]        = "Arab",
+    [countryArgentina]   = "Argentina",
+    [countryArmenia]     = "Armenia",
+    [countryAustralia]   = "Australia",
+    [countryBangla]      = "Bangla",
+    [countryBelgium]     = "Belgium",
+    [countryBrazil]      = "Brazil",
+    [countryBulgaria]    = "Bulgaria",
+    [countryCanada]      = "Canada",
+    [countryCaribbean]   = "Caribbean",
+    [countryChina]       = "China",
+    [countryCzech]       = "Czech",
+    [countryExYu]        = "ExYu",
+    [countryFrance]      = "France",
+    [countryGerman]      = "German",
+    [countryGreece]      = "Greece",
+    [countryHungary]     = "Hungary",
+    [countryIndia]       = "India",
+    [countryIran]        = "Iran",
+    [countryIreland]     = "Ireland",
+    [countryItaly]       = "Italy",
+    [countryJapan]       = "Japan",
+    [countryKannada]     = "Kannada",
+    [countryLatin]       = "Latin",
+    [countryMalayalam]   = "Malayalam",
+    [countryMarathi]     = "Marathi",
+    [countryNetherlands] = "Netherlands",
+    [countryNorway]      = "Norway",
+    [countryPakistan]    = "Pakistan",
+    [countryPhilippines] = "Philippines",
+    [countryPoland]      = "Poland",
+    [countryPortugal]    = "Portugal",
+    [countryRomania]     = "Romania",
+    [countryRussia]      = "Russia",
+    [countrySinhala]     = "Sinhala",
+    [countrySpain]       = "Spain",
+    [countrySweden]      = "Sweden",
+    [countrySwitzerland] = "Switzerland",
+    [countryTamil]       = "Tamil",
+    [countryTelugu]      = "Telugu",
+    [countryThailand]    = "Thailand",
+    [countryTurkey]      = "Turkey",
+    [countryUK]          = "UK",
+    [countryUSA]         = "USA",
+    [countryVietnam]     = "Vietnam"
+};
+
+
+typedef enum
+{
+    languageUnknown = 0,
+    languageEnglish,
+    languageFrench,
+    languageGerman,
+    languagePortugese,
+    languageGreek,
+    languageJapanese,
+    languageChinese,
+    languageSpanish,
+    languageSwedish,
+    languageMax
+} tLanguage;
+
+const char * languageAsString[] =
+{
+    [languageUnknown]   = "Unknown",
+    [languageEnglish]   = "English",
+    [languageFrench]    = "French",
+    [languageGerman]    = "German",
+    [languagePortugese] = "Portugese",
+    [languageGreek]     = "Greek",
+    [languageJapanese]  = "Japanese",
+    [languageChinese]   = "Chinese",
+    [languageSpanish]   = "Spanish",
+    [languageSwedish]   = "Swedish"
+};
+
+tLanguage countryToLanguage[] =
+{
+    [countryUnknown]     = languageUnknown,
+    [countryMultiple]    = languageUnknown,
+    [countryAfghanistan] = languageUnknown,
+    [countryAfrica]      = languageUnknown,
+    [countryAlbania]     = languageUnknown,
+    [countryArab]        = languageUnknown,
+    [countryArgentina]   = languageUnknown,
+    [countryArmenia]     = languageUnknown,
+    [countryAustralia]   = languageEnglish,
+    [countryBangla]      = languageUnknown,
+    [countryBelgium]     = languageUnknown,
+    [countryBrazil]      = languageUnknown,
+    [countryBulgaria]    = languageUnknown,
+    [countryCanada]      = languageEnglish,
+    [countryCaribbean]   = languageUnknown,
+    [countryChina]       = languageChinese,
+    [countryCzech]       = languageUnknown,
+    [countryExYu]        = languageUnknown,
+    [countryFrance]      = languageFrench,
+    [countryGerman]      = languageGerman,
+    [countryGreece]      = languageGreek,
+    [countryHungary]     = languageUnknown,
+    [countryIndia]       = languageUnknown,
+    [countryIran]        = languageUnknown,
+    [countryIreland]     = languageEnglish,
+    [countryItaly]       = languageUnknown,
+    [countryJapan]       = languageJapanese,
+    [countryKannada]     = languageUnknown,
+    [countryLatin]       = languageSpanish,
+    [countryMalayalam]   = languageUnknown,
+    [countryMarathi]     = languageUnknown,
+    [countryNetherlands] = languageUnknown,
+    [countryNorway]      = languageUnknown,
+    [countryPakistan]    = languageUnknown,
+    [countryPhilippines] = languageUnknown,
+    [countryPoland]      = languageUnknown,
+    [countryPortugal]    = languagePortugese,
+    [countryRomania]     = languageUnknown,
+    [countryRussia]      = languageUnknown,
+    [countrySinhala]     = languageUnknown,
+    [countrySpain]       = languageSpanish,
+    [countrySweden]      = languageSwedish,
+    [countrySwitzerland] = languageUnknown,
+    [countryTamil]       = languageUnknown,
+    [countryTelugu]      = languageUnknown,
+    [countryThailand]    = languageUnknown,
+    [countryTurkey]      = languageUnknown,
+    [countryUK]          = languageEnglish,
+    [countryUSA]         = languageEnglish,
+    [countryVietnam]     = languageUnknown
+};
+
+typedef enum
+{
+    affiliateUnknown = 0,
+    affiliateABC,
+    affiliateBBC,
+    affiliateCBC,
+    affiliateCBS,
+    affiliateCTV,
+    affiliateCW,
+    affiliateFox,
+    affiliateITV,
+    affiliateNBC,
+    affiliatePBS,
+    affiliateMax
+} tAffiliate;
+
+const char * affiliateAsString[] =
+{
+   [affiliateUnknown] = "Unknown",
+   [affiliateABC]     = "ABC",
+   [affiliateBBC]     = "BBC",
+   [affiliateCBC]     = "CBC",
+   [affiliateCBS]     = "CBS",
+   [affiliateCTV]     = "CTV",
+   [affiliateCW]      = "CW",
+   [affiliateFox]     = "Fox",
+   [affiliateITV]     = "ITV",
+   [affiliateNBC]     = "NBC",
+   [affiliatePBS]     = "PBS"
+};
+
+tCountry affiliateToCountry[] =
+{
+     [affiliateUnknown] = countryUnknown,
+     [affiliateABC]     = countryUSA,
+     [affiliateBBC]     = countryUK,
+     [affiliateCBC]     = countryCanada,
+     [affiliateCBS]     = countryUSA,
+     [affiliateCTV]     = countryCanada,
+     [affiliateCW]      = countryUSA,
+     [affiliateFox]     = countryUSA,
+     [affiliateITV]     = countryUK,
+     [affiliateNBC]     = countryUSA,
+     [affiliatePBS]     = countryUSA
+};
+
 
 typedef struct {
-    const char * name;
-    unsigned int hash;
+    const char *  name;
+    tHash         hash;
 } tLineup;
 
-typedef struct
-{
-    const char * name;
-    unsigned int hash;
-    tResolution  resolution;
+
+
+typedef struct sGroup {
+    struct sGroup * next;
+    const char *    name;
+    tHash           hash;
+    tCountry        country;
+    tLanguage       language;
+    tGenre          genre;
+    tAffiliate      affiliate;
+    tResolution     resolution;
+    bool            isVIP;
 } tGroup;
 
-typedef struct {
-    const char * url;
-    tResolution  resolution;
-} tFeed;
+typedef struct sStream {
+    struct sStream *  next;
+    const char     *  url;
+    tHash             hash;
+    struct sChannel * channel;
+    tResolution       resolution;
+    bool              isVIP;
+} tStream;
 
-typedef struct
-{
-    const char * name;
-    unsigned int hash;
+typedef struct sChannel {
+    struct sChannel * next;
 
-    tFeed *      feed;
-    tLineup *    lineup;
-    tGroup *     group;
+    const char *      name;
+    tHash             hash;
+    tCountry          country;
+    tLanguage         language;
+    tGenre            genre;
+    tAffiliate        affiliate;
+
+    tStream *         stream;
+    tLineup *         lineup;
+    tGroup *          group;
 } tChannel;
+
+tGroup *   groupHead   = NULL;
+tChannel * channelHead = NULL;
+tStream *  streamHead  = NULL;
+
+
+tStream * newStream( void )
+{
+    return (tStream *) calloc( 1, sizeof( tStream ));
+}
+
+void freeStream( tStream * stream )
+{
+    free( (void *)stream );
+}
 
 tChannel * newChannel(void)
 {
-    return (tChannel *) calloc(1,sizeof(tChannel));
+    return (tChannel *) calloc(1,sizeof( tChannel ));
 }
 
 tChannel * freeChannel( tChannel * channel )
 {
     if (channel != NULL)
     {
-        if ( channel->feed != NULL)
+        tStream * stream = channel->stream;
+        channel->stream = NULL;
+        while ( stream != NULL)
         {
-            free( channel->feed );
-            channel->feed = NULL;
+            tStream * next = stream->next;
+            freeStream( stream );
+            stream = next;
         }
 
         if ( channel->lineup != NULL)
@@ -96,27 +394,67 @@ tChannel * freeChannel( tChannel * channel )
             channel->lineup = NULL;
         }
 
-        if ( channel->group != NULL)
-        {
-            free( channel->group );
-            channel->group = NULL;
-        }
         free( channel );
     }
     return NULL;
 }
 
-/*
- *
- */
+tGroup * newGroup( void )
+{
+    return (tGroup *) calloc( 1, sizeof( tGroup ));
+}
+
+void freeGroup( tGroup * group )
+{
+    if (group != NULL)
+    {
+        free((void *) group->name);
+        free((void *) group );
+    }
+}
+
+void dumpStream( tStream * stream )
+{
+    fprintf( stderr, "      rez: %s, isvip %d, url: %s\n",
+             resolutionAsString[stream->resolution],
+             stream->isVIP,
+             stream->url );
+}
+
+void dumpChannel( tChannel * channel )
+{
+    fprintf( stderr,
+             "    channel: %s (0x%08lx), genre: %s, affiliate: %s, country: %s, language: %s\n",
+             channel->name,
+             channel->hash,
+             genreAsString[channel->genre],
+             affiliateAsString[channel->affiliate],
+             countryAsString[channel->country],
+             languageAsString[channel->language] );
+}
+
+void dumpGroup( tGroup * group )
+{
+    fprintf( stderr, "    group: %s (0x%08lx), genre: %s, affiliate: %s, country: %s, language: %s, rez: %s, vip: %d\n",
+             group->name,
+             group->hash,
+             genreAsString[group->genre],
+             affiliateAsString[group->affiliate],
+             countryAsString[group->country],
+             languageAsString[group->language],
+             resolutionAsString[group->resolution],
+             group->isVIP );
+}
+
 unsigned int calcNameHash( const char * string )
 {
-    unsigned int hash = 0;
-    const char * p = string;
+    tHash hash = 0;
+    const unsigned char * p = (const unsigned char *)string;
     unsigned int c;
 
-    while ( (c = gNameCharMap[ (unsigned char)*p++ ]) != '\0' )
+    while ( (c = *p++) != '\0' )
     {
+        c = gNameCharMap[c];
         switch ( c )
         {
         case kNameSeparator:
@@ -156,315 +494,713 @@ void trimTrailingWhitespace(char * line)
     }
 }
 
-
-#define kEOF    255
-
-static size_t length;
-static const char * pointer;
-
-void setBuf( size_t len, const char * p )
+/**
+ * @brief
+ * @param hash
+ * @param vip
+ * @param resolution
+ * @return
+ */
+bool checkHashResolutionVIP( tHash hash, bool * vip, tResolution * resolution )
 {
-    length  = len;
-    pointer = p;
-}
+    bool result = false;
 
-unsigned char getBufChar( void )
-{
-    unsigned char result = kEOF;
-
-    if ( length > 0 )
+    switch ( hash )
     {
-        result = *pointer++;
-        length--;
-    }
+    case kNameVIP:
+        *vip = true;
+        break;
 
-    return result;
-}
+    case kNameSD:
+        *resolution = rSD;
+        break;
 
-const char * getBufPos( void )
-{
-    return pointer;
-}
+    case kNameHD:
+        *resolution = rHD;
+        break;
 
-size_t getBufRemaining( void )
-{
-    return length;
-}
+    case kNameFHD:
+        *resolution = rFHD;
+        break;
 
-void skipEOLchars( void )
-{
-    while ( length > 0 )
-    {
-        if ( getKeywordWord( *pointer ) != kKeywordEOL )
-        {
-            break;
-        }
-        pointer++;
-        length--;
-    }
-}
+    case kNameHDMix:
+    case kNameFHDMix:
+        *resolution = rMixedHD;
+        break;
 
-char * strdupToEOL( void )
-{
-    char       * result = NULL;
-    const char * start  = getBufPos();
-    unsigned int c;
-
-    while ( getBufRemaining() > 0 )
-    {
-        c = getKeywordWord( getBufChar() );
-        if ( c == kKeywordEOL || getBufRemaining() == 0 )
-        {
-            size_t len = getBufPos() - start;
-            if ( c == kKeywordEOL )
-            { --len; }
-            result = calloc( 1, len + 1 );
-            if ( result != NULL)
-            {
-                memcpy( result, start, len );
-            }
-            break;
-        }
+    default:
+        result = true;
+        break;
     }
     return result;
 }
 
-
-tChannel * processChannelName( const char * name )
+/**
+ * @brief
+ * @param hash
+ * @param country
+ * @return
+ */
+bool checkHashCountry( tHash hash, tCountry * country, tLanguage * language )
 {
-    tChannel * result = NULL;
-    char *        d;
-    int           i;
-    unsigned int  c;
-    const char *  p = name;
-    const char *  s = name;
-    unsigned long hash = 0;
-    char          temp[64];
+    bool result = false;
+
+    tCountry previous = *country;
+
+    switch ( hash )
+    {
+    case kNameAfghanistan:
+        *country = countryAfghanistan;
+        break;
+    case kNameAfrica:
+        *country = countryAfrica;
+        break;
+    case kNameAlbania:
+        *country = countryAlbania;
+        break;
+    case kNameArab:
+        *country = countryArab;
+        break;
+    case kNameArgentina:
+        *country = countryArgentina;
+        break;
+    case kNameArmenia:
+        *country = countryArmenia;
+        break;
+    case kNameAustralia:
+    case kNameAustraliaNZ:
+        *country  = countryAustralia;
+        break;
+    case kNameBangla:
+        *country = countryBangla;
+        break;
+    case kNameBelgium:
+        *country = countryBelgium;
+        break;
+    case kNameBrazil:
+        *country  = countryBrazil;
+        break;
+    case kNameBulgaria:
+        *country = countryBulgaria;
+        break;
+    case kNameCanada:
+        *country  = countryCanada;
+        break;
+    case kNameCaribbean:
+        *country = countryCaribbean;
+        break;
+    case kNameChina:
+        *country  = countryChina;
+        break;
+    case kNameCzech:
+        *country = countryCzech;
+        break;
+    case kNameExYu:
+        *country = countryExYu;
+        break;
+    case kNameFrance:
+        *country = countryFrance;
+        break;
+    case kNameGerman:
+        *country = countryGerman;
+        break;
+    case kNameGreece:
+    case kNameGreek:
+        *country = countryGreece;
+        break;
+    case kNameHungary:
+        *country = countryHungary;
+        break;
+    case kNameIndia:
+        *country = countryIndia;
+        break;
+    case kNameIran:
+        *country = countryIran;
+        break;
+    case kNameIreland:
+    case kNameIrish:
+        *country  = countryIreland;
+        break;
+    case kNameItaly:
+        *country = countryItaly;
+        break;
+    case kNameJapan:
+        *country  = countryJapan;
+        break;
+    case kNameKannada:
+        *country = countryKannada;
+        break;
+    case kNameLatin:
+        *country  = countryLatin;
+        break;
+    case kNameMalayalam:
+        *country = countryMalayalam;
+        break;
+    case kNameMarathi:
+        *country = countryMarathi;
+        break;
+    case kNameNetherlands:
+        *country = countryNetherlands;
+        break;
+    case kNameNorway:
+        *country = countryNorway;
+        break;
+    case kNamePakistan:
+        *country = countryPakistan;
+        break;
+    case kNamePhilippines:
+        *country = countryPhilippines;
+        break;
+    case kNamePolish:
+        *country = countryPoland;
+        break;
+    case kNamePortugal:
+        *country  = countryPortugal;
+        break;
+    case kNameRomania:
+        *country = countryRomania;
+        break;
+    case kNameRussia:
+        *country = countryRussia;
+        break;
+    case kNameSinhala:
+        *country = countrySinhala;
+        break;
+    case kNameSpain:
+    case kNameSpanish:
+        *country  = countrySpain;
+        break;
+    case kNameSweden:
+        *country  = countrySweden;
+        break;
+    case kNameSwitzerland:
+        *country = countrySwitzerland;
+        break;
+    case kNameTamil:
+        *country = countryTamil;
+        break;
+    case kNameTelugu:
+        *country = countryTelugu;
+        break;
+    case kNameThailand:
+        *country = countryThailand;
+        break;
+    case kNameTurkey:
+    case kNameTurkish:
+        *country = countryTurkey;
+        break;
+    case kNameUK:
+        *country  = countryUK;
+        break;
+    case kNameUS:
+    case kNameUSA:
+        *country  = countryUSA;
+        break;
+    case kNameVietnam:
+        *country = countryVietnam;
+        break;
+
+    default:
+        result = true;
+        break;
+    }
+    if (result == false)
+    {
+        *language = countryToLanguage[*country];
+
+        if ( previous != countryUnknown
+          || previous == countryMultiple )
+        {
+            *country = countryMultiple;
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief
+ * @param hash
+ * @param genre
+ * @return
+ */
+bool checkHashGenre( tHash hash, tGenre * genre )
+{
+    bool result = false;
+
+    switch ( hash )
+    {
+    case kNameEntertainment:
+        *genre = genreEntertainment;
+        break;
+
+    case kNameNews:
+        *genre = genreNews;
+        break;
+
+    case kNameMusic:
+    case kNameRadio:
+        *genre = genreMusic;
+        break;
+
+    case kNameDocumentary:
+    case kNameDocumentaries:
+        *genre = genreDocumentary;
+        break;
+
+    case kNameSport:
+    case kNameSports:
+    case kNameFootball:
+    case kNameSoccer:
+    case kNameRugby:
+    case kNameLeague:
+    case kNameFormula:
+    case kNameMotorsports:
+    case kNameRacing:
+    case kNameChampionship:
+    case kNameGolf:
+    case kNameESPN:
+        *genre = genreSports;
+        break;
+
+    case kNameNFL:
+    case kNameNHL:
+    case kNameNBA:
+    case kNameMLB:
+        *genre = genreSports;
+        break;
+
+    case kNameMovie:
+    case kNameMovies:
+        *genre = genreMovies;
+        break;
+
+    case kNameChildrens:
+    case kNameKids:
+        *genre = genreKids;
+        break;
+
+    case kNameReligious:
+        *genre = genreReligious;
+        break;
+
+    default:
+        result = true;
+        break;
+    }
+    return result;
+}
+
+/**
+ * @brief
+ * @param hash
+ * @param affiliate
+ * @return
+ */
+bool checkHashAffiliate( tHash hash, tAffiliate * affiliate )
+{
+    bool result = false;
+
+    switch ( hash )
+    {
+    case kNameBBC:
+        *affiliate = affiliateBBC;
+        break;
+
+    case kNameITV:
+        *affiliate = affiliateITV;
+        break;
+
+    case kNameABC:
+        *affiliate = affiliateABC;
+        break;
+
+    case kNameCBC:
+        *affiliate = affiliateCBC;
+        break;
+
+    case kNameCBS:
+        *affiliate = affiliateCBS;
+        break;
+
+    case kNameCW:
+        *affiliate = affiliateCW;
+        break;
+
+    case kNameFox:
+        *affiliate = affiliateFox;
+        break;
+
+    case kNameNBC:
+        *affiliate = affiliateNBC;
+        break;
+
+    case kNamePBS:
+        *affiliate = affiliatePBS;
+        break;
+
+    default:
+        result = true;
+        break;
+    }
+    return result;
+}
+
+/**
+ * @brief
+ * @param stream
+ * @param name
+ * @return
+ */
+tChannel * processChannelName( tStream * stream, const char * name )
+{
+    tChannel *     channel;
+    unsigned int   mappedC;
+    const char *   p = name;
+    const char *   sp;
+    char *         dp;
+    int            dl;
+    tHash          hash;
+    char           temp[64];
+
+    channel = newChannel();
+
+    /* first extract any attributes embedded in the channel name,
+     * tags like 'VIP', 'UK', 'HD', etc. See name.hash */
+
+    hash = 0;
+
+    p = name;
+    sp = p;
 
     temp[0] = '\0';
+    dp = temp;
+    dl = sizeof( temp ) - 1;
 
-    do {
-        c = getNameWord( *p++ );
-        switch ( c )
+    do
+    {
+        mappedC = getNameWord( *p++ );
+        if ( mappedC != kNameSeparator && mappedC != '\0' )
         {
-        case '\0':
-        case kNameSeparator:
+            hash = fNameHashChar( hash, mappedC );
+        }
+        else {
             if ( hash != 0 )
             {
-                switch ( hash )
+                if ( checkHashResolutionVIP( hash, &stream->isVIP,
+                                             &stream->resolution ))
                 {
-                case kNameVIP:
-                    printf( "name: VIP\n" );
-                    break;
-
-                case kNameSD:
-                    printf( "name: SD\n" );
-                    break;
-
-                case kNameHD:
-                    printf( "name: 720p\n" );
-                    break;
-
-                case kNameFHD:
-                    printf( "name: 1080p\n" );
-                    break;
-
-                default:
-                    d = temp;
-                    for ( i = sizeof( temp ); i > 0 && *d != '\0'; i-- )
-                    { d++; }
-                    while ( i > 0 && s < p )
+                    if ( checkHashCountry( hash, &channel->country, &channel->language ))
                     {
-                        *d++ = *s++;
-                        i--;
+                        if ( checkHashGenre( hash, &channel->genre ))
+                        {
+                            checkHashAffiliate( hash, &channel->affiliate );
+                        }
                     }
-                    *d = '\0';
-                    break;
+
+                    while ( dl > 0 && p > sp )
+                    {
+                        *dp++ = *sp++;
+                        dl--;
+                    }
+                    *dp = '\0';
                 }
                 hash = 0;
             }
-            s = p;
-            break;
-
-        default:
-            hash = fNameHashChar( hash, c );
-            break;
+            sp = p;
         }
-    } while ( c != '\0' );
+    } while ( mappedC != '\0' );
+
     trimTrailingWhitespace( temp );
 
-    printf( "name: \"%s\"\n", temp );
+    /* Let's see if we already have a matching channel */
 
-    return result;
+    channel->name = strdup( temp );
+    channel->hash = calcNameHash( temp );
+
+    tChannel * chan = channelHead;
+    while ( chan != NULL )
+    {
+        if ( channel->hash == chan->hash
+          && channel->country == chan->country )
+        {
+            /* channel already exists, so discard the local one */
+            freeChannel( channel );
+            /* and switch to the existing one */
+            channel = chan;
+            break;
+        }
+        chan = chan->next;
+    }
+    if (chan == NULL)
+    {
+        /* didn't find it, so add new channel to the chain */
+        channel->next = channelHead;
+        channelHead   = channel;
+    }
+
+    /* point to the channel from the stream */
+    stream->channel = channel;
+
+    return channel;
 }
 
 tGroup * processGroupName( const char * name )
 {
-    tGroup * result = NULL;
-    const char * p     = name;
-    const char * s     = name;
-    char       * d;
-    int           i;
-    unsigned int  c;
-    unsigned long hash = 0;
-    char          temp[64];
+    tGroup *       group;
+    const char *   p;
+    const char *   sp;
+    char *         dp;
+    size_t         dl;
+    unsigned int   mappedC;
+    unsigned long  hash;
+    char temp[64];
+
+    p  = name;
+    sp = p;
 
     temp[0] = '\0';
+    dp = temp;
+    dl = sizeof(temp) - 1;
+
+    hash = 0;
+
+    group = newGroup();
 
     do {
-        c = getNameWord( *p++ );
-        switch ( c )
+        mappedC = getNameWord( *p++ );
+        if ( mappedC != kNameSeparator && mappedC != '\0' )
         {
-        case '\0':
-        case kNameSeparator:
+            hash = fNameHashChar( hash, mappedC );
+        }
+        else {
             if ( hash != 0 )
             {
-                switch ( hash )
+                if ( checkHashResolutionVIP( hash, &group->isVIP,
+                                             &group->resolution ))
                 {
-                case kNameVIP:
-                    printf( "group: VIP\n" );
-                    break;
-
-                case kNameSD:
-                    printf( "group: SD\n" );
-                    break;
-
-                case kNameHD:
-                    printf( "group: 720p\n" );
-                    break;
-
-                case kNameFHD:
-                    printf( "group: 1080p\n" );
-                    break;
-
-                case kNameHDMix:
-                case kNameFHDMix:
-
-                    printf( "group: HD Mix\n" );
-                    break;
-
-                default:
-                    d       = temp;
-                    for ( i = sizeof( temp ); i > 0 && *d != '\0'; i-- )
-                    { d++; }
-                    while ( i > 0 && s < p )
+                    if ( checkHashCountry( hash, &group->country, &group->language ))
                     {
-                        *d++ = *s++;
-                        i--;
+                        if ( checkHashGenre( hash, &group->genre ))
+                        {
+                            checkHashAffiliate( hash, &group->affiliate );
+                        }
                     }
-                    *d      = '\0';
-                    break;
+
+                    while ( dl > 0 && sp < p )
+                    {
+                        *dp++ = *sp++;
+                        dl--;
+                    }
+                    *dp = '\0';
                 }
                 hash = 0;
             }
-            s = p;
-            break;
+            sp = p;
+        }
+    } while ( mappedC != '\0' );
 
-        default:
-            hash = fNameHashChar( hash, c );
+    group->name = strdup( temp );
+    group->hash = calcNameHash( temp );
+
+    tGroup * grp = groupHead;
+    while ( grp != NULL)
+    {
+        if ( group->hash == grp->hash
+          && group->country == grp->country )
+        {
+            /* channel already exists, so discard the local one */
+            freeGroup( group );
+            /* and switch to the existing one */
+            group = grp;
+            fprintf( stderr, "existing group \"%s\" (0x%08lx)\n",
+                     group->name, group->hash );
             break;
         }
-    } while ( c != '\0' );
-    trimTrailingWhitespace( temp );
+        grp = grp->next;
+    }
+    if ( grp == NULL)
+    {
+        /* didn't find it, so add new channel to the chain */
+        group->next = groupHead;
+        groupHead = group;
+        fprintf( stderr, "new group \"%s\" (0x%08lx)\n",
+                 group->name, group->hash);
+    }
 
-    printf( "group: \"%s\"\n", temp );
-
-    return result;
+    return group;
 }
 
-void processBuf( void )
+void ProcessEntry( tGroup * group, tChannel * channel, tStream * stream )
 {
-    static unsigned long hash;
-    static unsigned long lastKeyHash;
+    fprintf( stderr, ">>> ProcessEntry\n" );
 
-    while ( getBufRemaining() > 0 )
+    /* inherit group attributes as applicable */
+
+    /* inherit country from group if channel country is unknown */
+    if (channel->country == countryUnknown
+     && group->country != countryUnknown )
     {
-        unsigned short w = getKeywordWord( getBufChar());
+        channel->country = group->country;
+    }
+
+    if ( channel->language == languageUnknown
+      && group->language != languageUnknown )
+    {
+        channel->language = group->language;
+    }
+
+    if (channel->genre == genreUnknown
+     && group->genre != genreUnknown)
+    {
+        channel->genre = group->genre;
+    }
+
+    if ( channel->affiliate == affiliateUnknown
+      && group->affiliate != affiliateUnknown )
+    {
+        channel->affiliate = group->affiliate;
+    }
+
+    /* inherit resolution from group if channel resolution is unknown */
+    if ( stream->resolution == rUnknown
+      && group->resolution != rUnknown )
+    {
+        stream->resolution = group->resolution;
+    }
+
+    /* inherit VIP status from group if not already VIP */
+    if ( !stream->isVIP && group->isVIP)
+    {
+        stream->isVIP = group->isVIP;
+    }
+
+    dumpGroup( group );
+    dumpChannel( channel );
+    dumpStream( stream );
+}
+
+/* process an entire M3U file */
+void processM3U( tBuffer * buffer )
+{
+    unsigned long hash = 0;
+    unsigned long assignmentHash = 0;
+
+    tGroup *   group   = NULL;
+    tChannel * channel = NULL;
+    tStream *  stream  = NULL;
+
+    while ( bufferGetRemaining( buffer ) > 0 )
+    {
+        unsigned short w = getKeywordWord( bufferGetChar( buffer ));
         switch ( w )
         {
+        case kKeywordEOL: /* check hash for a known keyword */
+            switch (hash)
+            {
+            case kKeywordEXTM3U:
+                fprintf(stderr, "[File Start]\n" );
+                break;
+
+            default:
+                fprintf( stderr, "### unknown line\n" );
+                break;
+            }
+            hash = 0;
+            break;
+
+        case kKeywordSeparator: /* check hash for a known keyword */
+            switch ( hash )
+            {
+            case kKeywordEXTINF:
+                printf( "[Entry Start]\n" );
+                stream  = newStream();
+                group   = newGroup();
+                break;
+            }
+            hash = 0;
+            break;
+
+        case kKeywordAssign:
+            if ( hash != 0 )
+            {
+                assignmentHash = hash;
+                hash           = 0;
+            }
+            break;
+
         case kKeywordQuote:
             {
-                char * str;
-                const char * start = getBufPos();
-                /* scan forward looking for the terminating quote */
-                while ( getBufRemaining() > 0 )
+                const char * str = bufferGetQuotedString( buffer );
+                if ( str != NULL)
                 {
-                    unsigned short w = getKeywordWord( getBufChar());
-                    if ( w == kKeywordQuote )
+                    switch ( assignmentHash )
                     {
-                        size_t len = getBufPos() - start - 1;
-                        str = calloc( 1, len + 1 );
-                        if ( str != NULL)
+                    case kKeywordID:
+                        printf( "       ID: \"%s\"\n", str );
+                        break;
+
+                    case kKeywordName:
                         {
-                            memcpy( str, start, len );
-                            switch ( lastKeyHash )
-                            {
-                            case kKeywordID:
-                                printf( "       ID: \"%s\"\n", str );
-                                break;
+                            printf( "     Name: \"%s\"\n", str );
 
-                            case kKeywordName:
-                                printf( "     Name: \"%s\"\n", str );
-                                processChannelName( str );
-                                break;
-
-                            case kKeywordLogo:
-                                printf( "     Logo: \"%s\"\n", str );
-                                break;
-
-                            case kKeywordGroup:
-                                printf( "    Group: \"%s\"\n", str );
-                                processGroupName( str );
-                                break;
-                            }
+                            channel = processChannelName( stream, str );
                         }
-                        hash = 0;
+                        break;
+
+                    case kKeywordLogo:
+                        // printf( "     Logo: \"%s\"\n", str );
+                        break;
+
+                    case kKeywordGroup:
+                        {
+                            printf( "    Group: \"%s\"\n", str );
+
+                            group = processGroupName( str );
+                        }
                         break;
                     }
+                    assignmentHash = 0;
                 }
+                hash = 0;
             }
             break;
 
         case kKeywordComma:
             {
                 /* from here to EOL is also the name */
-                char * name = strdupToEOL();
+                const char * name = bufferGetStringToEOL( buffer );
                 printf( " trailing: \"%s\"\n", name );
 
-                /* skip over end-of-line character(s) */
-                skipEOLchars();
-
                 /* the entire next line is the URL */
-                char * url = strdupToEOL();
+                const char * url = bufferGetStringToEOL( buffer );
                 printf( "      url: \"%s\"\n", url );
 
-                /* skip over end-of-line character(s) */
-                skipEOLchars();
+                stream->url  = url;
+                stream->hash = calcNameHash( url );
+
+                /* We've finished parsing an Entry, now incorporate it */
+                ProcessEntry( group, channel, stream );
+
+                group   = NULL;
+                channel = NULL;
 
                 hash = 0;
             }
-            break;
-
-        case kKeywordAssign:
-            if ( hash != 0 )
-            {
-                lastKeyHash = hash;
-                hash        = 0;
-            }
-            break;
-
-        case kKeywordSeparator: /* check hash for a known keyword */
-            if ( hash == kKeywordEXTINF)
-            {
-                printf( "[Start]\n" );
-            }
-            hash = 0;
             break;
 
         default:
             hash = fKeywordHashChar( hash, w );
             break;
         }
+    } /* getBuffRemaining */
+
+    fprintf(stderr, "[Groups]\n");
+
+    group = groupHead;
+    while (group != NULL)
+    {
+        dumpGroup( group );
+        group = group->next;
     }
 }
 
@@ -482,7 +1218,6 @@ int processFile( const char * path )
     {
         size_t length = fileinfo.st_size;
         const char * map = (const char *) mmap( NULL, length, PROT_READ, MAP_PRIVATE, fd, 0 );
-        setBuf( length, map );
 
         if ( map == MAP_FAILED || map == NULL )
         {
@@ -490,7 +1225,8 @@ int processFile( const char * path )
         }
         else
         {
-            processBuf();
+            tBuffer * buffer = bufferNew( map, length );
+            processM3U( buffer );
         }
     }
     return result;
