@@ -1,0 +1,3 @@
+[submodule "HashStrings"]
+	path = HashStrings
+	url = git@github.com:paul-chambers/HashStrings.git
