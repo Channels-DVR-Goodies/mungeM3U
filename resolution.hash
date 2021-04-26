@@ -1,7 +1,7 @@
 //
 //
 
-prefix = "Name"
+prefix = "Resolution"
 
 # the character mapping array
 # array starts out mapping one-to-one, i.e. input = output
@@ -11,7 +11,7 @@ mappings:
     # make the generated hashes case-insensitive
     ignoreCase = true
 
-    # mark these characters as 'kNameSeparator'
+    # mark these characters as 'kGenreSeparator'
     Separator = " :|-()[]"
 }
 
@@ -19,10 +19,8 @@ mappings:
 # if there is a comma, first string is for symbol, subsequent strings are to hash
 #
 keywords = [
-    "TV",
-    "Chan,Chan,Channel",
-    "VIP",
-    "Plus1,+1",
-    "Live,Live,Event,Events",
-    "FrenchCanadian,French,FR,Quebec,Montreal"
+    "SD",
+    "HD",
+    "Mixed,HD/FHD,FHD/HD",
+    "FHD"
 ]

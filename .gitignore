@@ -52,6 +52,15 @@ Mkfile.old
 dkms.conf
 
 # project specific
-/keywords.h
-/mungeFCC/fccdata.txt
-/name.h
+.idea/
+cmake-build-debug/
+affiliate.h
+country.h
+fccdata.h
+genre.h
+keyword.h
+name.h
+nielsenDMA.h
+region.h
+resolution.h
+

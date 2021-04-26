@@ -2,6 +2,7 @@
 // Created by paul on 12/28/20.
 //
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "buffer.h"
@@ -101,4 +102,28 @@ const char * bufferGetStringToEOL( tBuffer * buffer )
         result[len] = '\0';
     }
     return (const char *)result;
+}
+
+void bufferPrintToEOL( FILE * output, tBuffer * buffer )
+{
+    const char * src = buffer->pointer;
+    char * dest;
+    char line[1024];
+
+    size_t remaining = buffer->remaining;
+    if ( remaining > sizeof(line) - 1 )
+    {
+        remaining = sizeof(line) - 1;
+    }
+
+    dest = line;
+    while ( remaining > 0
+            && *src != '\n'
+            && *src != '\r' )
+    {
+        *dest++ = *src++;
+        remaining--;
+    }
+    *dest = '\0';
+    fprintf( output, "%s\n", line );
 }

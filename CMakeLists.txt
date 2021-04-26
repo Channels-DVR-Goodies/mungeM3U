@@ -23,11 +23,12 @@ endforeach (HASH)
 
 add_custom_target(hashes ALL DEPENDS ${OUTFILES})
 
-add_executable( mungeFCC
-                mungeFCC/mungeFCC.c mungeFCC/mungeFCC.h )
-
 add_executable( mungeM3U
                 mungeM3U.c mungeM3U.h
-                argtable3.c argtable3.h countryCodes.h buffer.c buffer.h)
+                btree/btree.c btree/btree.h
+                buffer.c buffer.h
+                affiliate.h country.h fccdata.h genre.h
+                keyword.h name.h nielsenDMA.h resolution.h
+                region.h usstationdata.h )
 
-target_link_libraries(mungeM3U m)
+target_link_libraries(mungeM3U argtable3 hashstrings m)

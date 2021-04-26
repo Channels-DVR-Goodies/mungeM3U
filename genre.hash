@@ -1,0 +1,39 @@
+//
+//
+
+prefix = "Genre"
+
+# the character mapping array
+# array starts out mapping one-to-one, i.e. input = output
+#
+mappings:
+{
+    # make the generated hashes case-insensitive
+    ignoreCase = true
+
+    # mark these characters as 'kGenreSeparator'
+    Separator = " :|-()[]"
+}
+
+# the strings to hash into the enum
+# if there is a comma, first string is for symbol, subsequent strings are to hash
+#
+keywords = [
+    "Adult,Adult,XXX,Porn",
+    "Catchup,Catchup,Catch-Up",
+    "Children,Children,Childrens,Kid,Kids,Kinder,Kinderen,Infantil,Youth",
+    "Documentary,Documentary,Documentaries,Documentaires,Dokus,Documentários,History",
+    "Entertainment,Entertainment,Unterhaltung,Entretenimento",
+    "Movies,Movies,Movie,Film,Filme,Filmes,Cinema,HBO,Starz,Cinemax,AMC,TCM",
+    "Music,Music,Musik,Muziek,Música,Radio,MTV",
+    "News,News,Nachrichten,Nieuws,CNN,MSNBC",
+    "PayPerView,PayPerView,PPV",
+    "Regional,Regional,Regionals,Regionaal,Local,Locals,Network",
+    "Religious,Religious,Religion,Church,Prayer,Worship,God,Christian",
+    "Shopping,Shopping,Einkaufen,QVC,HSN",
+    "Sports,Sports,Sport,Game,Racing,Betting,Athletic,League,Championship,Challenge,Formula,Motorsport,Motorsports,"
+        "Football,Soccer,Rugby,Cricket,Golf,F1,Motocross,MotoGP,rally,"
+        "MLB,NBA,NFL,NHL,ESPN,ESPN+,CBSN,PAC-12,PAC12",
+    "TwentyFourSeven,247,24x7,24/7",
+    "VideoOnDemand,VideoOnDemand,OnDemand,VOD"
+]

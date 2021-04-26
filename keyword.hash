@@ -9,7 +9,7 @@ prefix = "Keyword"
 #
 mappings:
 {
-    # make the generated hashes case-insensitive
+    # make the generated hashes case-sensitive
     ignoreCase = false
 
     # mark these characters as 'kKeywordSeparator'

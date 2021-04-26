@@ -20,4 +20,7 @@ const char * bufferGetQuotedString( tBuffer * buffer );
 
 const char * bufferGetStringToEOL( tBuffer * buffer );
 
+void bufferPrintToEOL( FILE * output, tBuffer * buffer );
+
+
 #endif //MUNGEM3U_BUFFER_H
