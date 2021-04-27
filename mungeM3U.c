@@ -21,7 +21,7 @@
 #include "buffer.h"
 
 #include <libhashstrings.h>
-#include "keywords.h"
+#include "keyword.h"
 #include "name.h"
 #include "country.h"
 #include "genre.h"
@@ -264,6 +264,7 @@ bool processAttr( tHash hash, tAttr * attr )
 
     if (assignHash( mapCountrySearch, hash, &attr->country ))
     {
+        swallow = true;
         if ( attr->language == kLanguageUnknown )
         {
             attr->language = countryToLanguage[attr->country];
@@ -296,12 +297,12 @@ bool processAttr( tHash hash, tAttr * attr )
         swallow = true;
     }
 
-    if ( attr->country == kCountryUSA || attr->country == kCountryCanada )
+    if ( attr->country == kCountryUS || attr->country == kCountryCA )
     {
         assignHash( mapUSCallsignSearch, hash, &attr->usStation );
         if ( attr->usStation != kUSCallsignUnknown )
         {
-            attr->country   = kCountryUSA;
+            attr->country   = kCountryUS;
             attr->genre     = kGenreRegional;
             attr->affiliate = USStationData[ attr->usStation ].affiliateIdx;
         }
@@ -383,7 +384,16 @@ void processName( const char * name, tAttr * attr )
         }
     } while ( mappedC != '\0' );
 
-    trimTrailingWhitespace( temp );
+    /* nuke the trailing space, if there is one */
+    if ( dp[-1] == ' ' )
+    {
+        *(--dp) = '\0';
+        dl++;
+    }
+    if ( attr->country != kCountryUnknown )
+    {
+        snprintf( dp, dl, " (%s)", lookupCountryAsString[ attr->country ] );
+    }
 
     attr->name = strdup( temp );
     attr->hash = hashString( temp, gNameCharMap );
@@ -663,7 +673,7 @@ bool isEnabled( tChannel * channel )
     {
         switch ( attr->country )
         {
-        case kCountryCanada:
+        case kCountryCA:
         case kCountryUK:
             result = true;
             break;
