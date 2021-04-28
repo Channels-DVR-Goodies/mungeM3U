@@ -702,9 +702,15 @@ bool isEnabled( tChannel * channel )
             break;
 
         case kGenreRegional:
+            /* if we find a US Callsign, filter down to the SF Bay Area stations */
             if ( attr->usStation != kUSCallsignUnknown )
             {
                 result = ( USStationData[ attr->usStation ].nielsenDMAIdx == kNielsenDMASFBayArea );
+            }
+            /* nuke all the regional channels in the UK */
+            if ( attr->country == kCountryUK )
+            {
+                result = false;
             }
             break;
 
