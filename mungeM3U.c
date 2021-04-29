@@ -100,6 +100,93 @@ struct {
     } head;
 } global;
 
+/**
+ * @brief Decide if a channel should be included in the output M3U
+ *
+ * This is the key function to modify to sort your needs.
+ * It controls the filtering of channels imported from the original
+ * M3U to produce the trimmed-down list of channels you actually
+ * want to be in the output M3U.
+ *
+ * @param channel
+ * @return true if the channel should be included
+ */
+bool isEnabled( tChannel * channel )
+{
+    tAttr * attr = &channel->attr;
+    bool result = false;
+
+    /* only channels that are in the english language */
+    result = ( attr->language == kLanguageEnglish );
+    if ( result )
+    {
+        /* filter out all the +1 channels */
+        if ( attr->isPlus1 )
+        {
+            result = false;
+        }
+    }
+    if ( result )
+    {
+        /* trim down to just UK and Canadian channels */
+        switch ( attr->country )
+        {
+        case kCountryCA:
+        case kCountryUK:
+            result = true;
+            break;
+
+        default:
+            result = false;
+            break;
+        }
+    }
+    /* nuke all the 'live only during events' channels (typically sports) */
+    if ( result && attr->isLive )
+    {
+        result = false;
+    }
+    if (result)
+    {
+        switch ( attr->genre )
+        {
+            /* Filter out genres I don't personally watch */
+        case kGenreAdult:
+        case kGenreReligious:
+        case kGenreShopping:
+        case kGenreSports:
+            /* ...and the channels that don't make sense for a DVR */
+        case kGenrePayPerView:
+        case kGenreTwentyFourSeven:
+        case kGenreVideoOnDemand:
+            result = false;
+            break;
+
+            /* the regional channels can bump up the channel count significantly.
+             * since most methods of recording IPTV put a cap on the number of
+             * channels that can be imported, removing redundant channels is worthwhile */
+        case kGenreRegional:
+            /* if we find a US Callsign, filter down to the SF Bay Area stations */
+            if ( attr->usStation != kUSCallsignUnknown )
+            {
+                result = ( USStationData[ attr->usStation ].nielsenDMAIdx == kNielsenDMASFBayArea );
+            }
+            /* nuke the multitude of regional channels in the UK */
+            if ( attr->country == kCountryUK )
+            {
+                result = false;
+            }
+            break;
+
+        default: /* suppress the compiler warning by being explicit */
+            break;
+        }
+    }
+
+    return result;
+}
+
+/* in hindsight, I probably should have used C++ instead... */
 
 tStream * newStream( void )
 {
@@ -146,14 +233,6 @@ void freeGroup( tGroup * group )
         free((void *) group->attr.name );
         free((void *) group );
     }
-}
-
-void dumpStream( tStream * stream )
-{
-    fprintf( stderr, "   stream: rez: %s, isvip %d, url: %s\n",
-             lookupResolutionAsString[ stream->resolution ],
-             stream->isVIP,
-             stream->url );
 }
 
 void dumpAttrs( tAttr * attr)
@@ -205,6 +284,18 @@ void dumpAttrs( tAttr * attr)
     }
 }
 
+void dumpStreams(tStream * stream )
+{
+    while ( stream != NULL )
+    {
+        fprintf( stdout, "   stream: rez: %s, isvip %d, url: %s\n",
+                 lookupResolutionAsString[ stream->resolution ],
+                 stream->isVIP,
+                 stream->url );
+        stream = stream->next;
+    }
+}
+
 void dumpChannel( tChannel * channel )
 {
     fprintf( stderr, "  channel " );
@@ -221,39 +312,12 @@ void dumpGroup( tGroup * group )
     fprintf( stderr, ".\n" );
 }
 
-/**
- * trim any trailing whitespace from the end of the string
- *
- * @param line	line to be trimmed
- */
-void trimTrailingWhitespace(char * line)
-{
-    char * t    = line;
-    char * nwsp = line;
-
-    if ( t != NULL )
-    {
-        while (*t != '\0')
-        {
-            if (!isspace(*t++))
-            {
-                // note: t has already been incremented
-                nwsp = t;
-            }
-        }
-        *nwsp = '\0';
-    }
-}
-
 bool assignHash( tRecord skipTable[], tHash hash, tIndex * setting )
 {
     tIndex index = findHash( skipTable, hash );
-    if ( index != kIndexUnknown )
+    if ( index != kIndexUnknown && *setting == kIndexUnknown )
     {
-        if ( *setting == kIndexUnknown )
-        {
-            *setting = index;
-        }
+        *setting = index;
     }
     return (index != kIndexUnknown);
 }
@@ -262,7 +326,7 @@ bool processAttr( tHash hash, tAttr * attr )
 {
     bool swallow = false;
 
-    if (assignHash( mapCountrySearch, hash, &attr->country ))
+    if ( attr->country == kCountryUnknown && assignHash( mapCountrySearch, hash, &attr->country ))
     {
         swallow = true;
         if ( attr->language == kLanguageUnknown )
@@ -273,24 +337,23 @@ bool processAttr( tHash hash, tAttr * attr )
 
     switch (findHash( mapNameSearch, hash ))
     {
-        case kNameVIP:
-            attr->isVIP = true;
-            swallow = true;
-            break;
+    case kNameVIP:
+        attr->isVIP = true;
+        swallow = true;
+        break;
 
-        case kNamePlus1:
-            attr->isPlus1 = true;
-            break;
+    case kNamePlus1:
+        attr->isPlus1 = true;
+        break;
 
-        case kNameLive:
-            attr->isLive = true;
-            break;
+    case kNameLive:
+        attr->isLive = true;
+        break;
 
-        case kNameFrenchCanadian:
-            attr->language = kLanguageFrench;
-            break;
+    case kNameFrenchCanadian:
+        attr->language = kLanguageFrench;
+        break;
     }
-
 
     if (assignHash( mapResolutionSearch, hash, &attr->resolution ))
     {
@@ -321,6 +384,30 @@ bool processAttr( tHash hash, tAttr * attr )
     }
 
     return swallow;
+}
+
+tStream * bestStream( tStream * streamList )
+{
+    tStream * result = streamList;
+    if (result != NULL)
+    {
+        tStream * stream = result->next;
+        while (stream != NULL)
+        {
+            if ( stream->isVIP && !result->isVIP )
+            {
+                result = stream;
+            }
+            else
+            {
+                if ( stream->resolution > result->resolution)
+                {
+                    result = stream;
+                }
+            }
+        }
+    }
+    return result;
 }
 
 void processName( const char * name, tAttr * attr )
@@ -390,13 +477,31 @@ void processName( const char * name, tAttr * attr )
         *(--dp) = '\0';
         dl++;
     }
-    if ( attr->country != kCountryUnknown )
+
+    /* calculate the hash before the prefixes are added */
+    attr->hash = hashString( temp, gNameCharMap );
+
+    int len = 0;
+    if ( attr->resolution != kResolutionUnknown && dl > 5 )
     {
-        snprintf( dp, dl, " (%s)", lookupCountryAsString[ attr->country ] );
+        if (attr->country != kCountryUnknown)
+        {
+            len = snprintf( dp, dl, " (%s,%s)",
+                            lookupResolutionAsString[ attr->resolution ],
+                            lookupCountryAsString[ attr->country ]);
+        }
+        else {
+            len = snprintf( dp, dl, " (%s)", lookupResolutionAsString[ attr->resolution ] );
+        }
     }
+    else if ( attr->country != kCountryUnknown && dl > 5 )
+    {
+        len = snprintf( dp, dl, " (%s)", lookupCountryAsString[ attr->country ] );
+    }
+    dp += len;
+    dl -= len;
 
     attr->name = strdup( temp );
-    attr->hash = hashString( temp, gNameCharMap );
 }
 
 /**
@@ -407,20 +512,21 @@ void processName( const char * name, tAttr * attr )
  */
 tChannel * processChannelName( tChannel * channel, const char * name )
 {
-    tChannel * prev = NULL;
-    tChannel * chan = global.head.channel;
-
     processName( name, &channel->attr );
     tStream * stream = newStream();
     if ( stream != NULL )
     {
         stream->isVIP      = channel->attr.isVIP;
         stream->resolution = channel->attr.resolution;
+        stream->url        = channel->entry->url;
     }
 
+    tChannel ** prevChan = &global.head.channel;
     /* Let's see if we already have a matching channel */
-    while ( chan != NULL )
+    tChannel * chan;
+    for ( chan = global.head.channel; chan != NULL; chan = chan->next )
     {
+        /* make such the country matches, too - we removed it earlier */
         if ( channel->attr.hash    == chan->attr.hash
           && channel->attr.country == chan->attr.country )
         {
@@ -430,22 +536,38 @@ tChannel * processChannelName( tChannel * channel, const char * name )
             channel = chan;
             break;
         }
-        prev = chan;
-        chan = chan->next;
+        prevChan = &chan->next;
     }
     if (chan == NULL)
     {
         /* didn't find it, so add new channel to the end of the chain */
-        if (prev != NULL)
-        {
-            prev->next = channel;
-        } else {
-            global.head.channel = channel;
-        }
+        *prevChan = channel;
     }
 
-    stream->next = channel->stream;
-    channel->stream = stream;
+    /* keep track of the best resolution stream seen  */
+    if ( stream->resolution > channel->attr.resolution )
+    {
+        channel->attr.resolution = stream->resolution;
+    }
+
+    /* insertion sort to keep higher resolution streams first */
+    tStream * strm;
+    tStream ** prev = &channel->stream;
+    for ( strm = channel->stream; strm != NULL; strm = strm->next )
+    {
+        if ( stream->resolution > strm->resolution  )
+        {
+            stream->next = strm;
+            *prev = stream;
+            break;
+        }
+        prev = &strm->next;
+    }
+    if (strm == NULL)
+    {
+        /* resolution is not higher than any existing stream. so tack it on the end */
+        *prev = stream;
+    }
 
     return channel;
 }
@@ -656,71 +778,6 @@ void importM3U( tBuffer * buffer )
     } /* getBuffRemaining */
 }
 
-bool isEnabled( tChannel * channel )
-{
-    tAttr * attr = &channel->attr;
-    bool result = false;
-
-    result = ( attr->language == kLanguageEnglish );
-    if ( result )
-    {
-        if ( attr->isPlus1 )
-        {
-            result = false;
-        }
-    }
-    if ( result )
-    {
-        switch ( attr->country )
-        {
-        case kCountryCA:
-        case kCountryUK:
-            result = true;
-            break;
-
-        default:
-            result = false;
-            break;
-        }
-    }
-    if ( result && attr->isLive )
-    {
-        result = false;
-    }
-    if (result)
-    {
-        switch ( attr->genre )
-        {
-        case kGenreAdult:
-        case kGenrePayPerView:
-        case kGenreReligious:
-        case kGenreShopping:
-        case kGenreSports:
-        case kGenreTwentyFourSeven:
-        case kGenreVideoOnDemand:
-            result = false;
-            break;
-
-        case kGenreRegional:
-            /* if we find a US Callsign, filter down to the SF Bay Area stations */
-            if ( attr->usStation != kUSCallsignUnknown )
-            {
-                result = ( USStationData[ attr->usStation ].nielsenDMAIdx == kNielsenDMASFBayArea );
-            }
-            /* nuke all the regional channels in the UK */
-            if ( attr->country == kCountryUK )
-            {
-                result = false;
-            }
-            break;
-
-        default:
-            break;
-        }
-    }
-
-    return result;
-}
 
 void exportChannel( FILE * output, tChannel * channel )
 {
@@ -731,6 +788,7 @@ void exportChannel( FILE * output, tChannel * channel )
              channel->group->attr.name,
              channel->attr.name,
              channel->stream->url );
+    // dumpStreams( channel->stream );
 }
 
 void exportM3U( FILE * output )
@@ -757,13 +815,6 @@ void processM3U( tBuffer * buffer )
 
     for ( entry = global.head.entry; entry != NULL; entry = entry->next )
     {
-#if 0
-        fprintf( stderr, " ID: \"%s\" Name: \"%s\" Logo: \"%s\" Group: \"%s\"\n",
-                 entry->tvg_id,
-                 entry->tvg_name,
-                 entry->tvg_logo,
-                 entry->group_title );
-#endif
         group = newGroup();
         if ( group != NULL && entry->group_title != NULL )
         {
@@ -777,10 +828,8 @@ void processM3U( tBuffer * buffer )
             channel = processChannelName( channel, entry->tvg_name );
             /* for unset channel attrs, inherit the group attrs */
             stream = channel->stream;
-            if ( stream != NULL && entry->url != NULL )
+            if ( stream != NULL )
             {
-                stream->url   = entry->url;
-
                 inheritAttr( group, channel, stream );
             }
         }
