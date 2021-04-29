@@ -113,8 +113,12 @@ struct {
  */
 bool isEnabled( tChannel * channel )
 {
-    tAttr * attr = &channel->attr;
+#if 0
+    (void)channel;
+    bool result = true;
+#else
     bool result = false;
+    tAttr * attr = &channel->attr;
 
     /* only channels that are in the english language */
     result = ( attr->language == kLanguageEnglish );
@@ -150,8 +154,9 @@ bool isEnabled( tChannel * channel )
     {
         switch ( attr->genre )
         {
-            /* Filter out genres I don't personally watch */
+            /* Filter out genres I never record */
         case kGenreAdult:
+        case kGenreCivic:
         case kGenreReligious:
         case kGenreShopping:
         case kGenreSports:
@@ -182,7 +187,7 @@ bool isEnabled( tChannel * channel )
             break;
         }
     }
-
+#endif
     return result;
 }
 
@@ -235,60 +240,60 @@ void freeGroup( tGroup * group )
     }
 }
 
-void dumpAttrs( tAttr * attr)
+void dumpAttrs( FILE * output, tAttr * attr)
 {
     if ( attr->name != NULL )
     {
-        fprintf( stderr, "name: %s", attr->name );
+        fprintf( output, "name: %s", attr->name );
     }
     if ( attr->genre != kGenreUnknown )
     {
-        fprintf( stderr, ", genre: %s", lookupGenreAsString[attr->genre] );
+        fprintf( output, ", genre: %s", lookupGenreAsString[attr->genre] );
     }
     if ( attr->usStation != kUSCallsignUnknown )
     {
-        fprintf( stderr, ", callsign: \"%s\"",
+        fprintf( output, ", callsign: \"%s\"",
                  USStationData[ attr->usStation ].callsign );
-        fprintf( stderr, ", region: %s",
+        fprintf( output, ", region: %s",
                  lookupRegionAsString[ USStationData[ attr->usStation ].stateIdx ] );
-        fprintf( stderr, ", DMA: \"%s\"",
+        fprintf( output, ", DMA: \"%s\"",
                  lookupNielsenDMAAsString[ USStationData[ attr->usStation ].nielsenDMAIdx ] );
     }
     if ( attr->affiliate != kAffiliateUnknown )
     {
-        fprintf( stderr, ", affiliate: %s", lookupAffiliateAsString[attr->affiliate] );
+        fprintf( output, ", affiliate: %s", lookupAffiliateAsString[attr->affiliate] );
     }
     if ( attr->country != kCountryUnknown )
     {
-        fprintf( stderr, ", country: %s", lookupCountryAsString[attr->country] );
+        fprintf( output, ", country: %s", lookupCountryAsString[attr->country] );
     }
     if ( attr->language != kLanguageUnknown )
     {
-        fprintf( stderr, ", language: %s", lookupLanguageAsString[attr->language] );
+        fprintf( output, ", language: %s", lookupLanguageAsString[attr->language] );
     }
     if ( attr->resolution != kResolutionUnknown )
     {
-        fprintf( stderr, ", resolution: %s", lookupResolutionAsString[ attr->resolution ] );
+        fprintf( output, ", resolution: %s", lookupResolutionAsString[ attr->resolution ] );
     }
     if ( attr->isVIP )
     {
-        fprintf( stderr, ", VIP" );
+        fprintf( output, ", VIP" );
     }
     if (attr->isPlus1)
     {
-        fprintf(stderr,", +1");
+        fprintf(output,", +1");
     }
     if (attr->isLive)
     {
-        fprintf(stderr,", Live");
+        fprintf(output,", Live");
     }
 }
 
-void dumpStreams(tStream * stream )
+void dumpStreams( FILE * output, tStream * stream )
 {
     while ( stream != NULL )
     {
-        fprintf( stdout, "   stream: rez: %s, isvip %d, url: %s\n",
+        fprintf( output, "   stream: rez: %s, isvip %d, url: %s\n",
                  lookupResolutionAsString[ stream->resolution ],
                  stream->isVIP,
                  stream->url );
@@ -296,20 +301,20 @@ void dumpStreams(tStream * stream )
     }
 }
 
-void dumpChannel( tChannel * channel )
+void dumpChannel( FILE * output, tChannel * channel )
 {
-    fprintf( stderr, "  channel " );
-    dumpAttrs( &channel->attr );
+    fprintf( output, "  channel " );
+    dumpAttrs( output, &channel->attr );
 
-    fprintf( stderr, ".\n" );
+    fprintf( output, ".\n" );
 }
 
-void dumpGroup( tGroup * group )
+void dumpGroup( FILE * output, tGroup * group )
 {
-    fprintf( stderr, "    group " );
-    dumpAttrs( &group->attr );
+    fprintf( output, "    group " );
+    dumpAttrs( output, &group->attr );
 
-    fprintf( stderr, ".\n" );
+    fprintf( output, ".\n" );
 }
 
 bool assignHash( tRecord skipTable[], tHash hash, tIndex * setting )
@@ -519,54 +524,54 @@ tChannel * processChannelName( tChannel * channel, const char * name )
         stream->isVIP      = channel->attr.isVIP;
         stream->resolution = channel->attr.resolution;
         stream->url        = channel->entry->url;
-    }
 
-    tChannel ** prevChan = &global.head.channel;
-    /* Let's see if we already have a matching channel */
-    tChannel * chan;
-    for ( chan = global.head.channel; chan != NULL; chan = chan->next )
-    {
-        /* make such the country matches, too - we removed it earlier */
-        if ( channel->attr.hash    == chan->attr.hash
-          && channel->attr.country == chan->attr.country )
+        /* Let's see if we already have a matching channel */
+        tChannel ** prevChan = &global.head.channel;
+        tChannel * chan;
+        for ( chan = global.head.channel; chan != NULL; chan = chan->next )
         {
-            /* channel already exists, so discard the local one */
-            freeChannel( channel );
-            /* and switch to the existing one */
-            channel = chan;
-            break;
+            /* make such the country matches, too - we removed it earlier */
+            if ( channel->attr.hash    == chan->attr.hash
+                 && channel->attr.country == chan->attr.country )
+            {
+                /* channel already exists, so discard the local one */
+                freeChannel( channel );
+                /* and switch to the existing one */
+                channel = chan;
+                break;
+            }
+            prevChan = &chan->next;
         }
-        prevChan = &chan->next;
-    }
-    if (chan == NULL)
-    {
-        /* didn't find it, so add new channel to the end of the chain */
-        *prevChan = channel;
-    }
-
-    /* keep track of the best resolution stream seen  */
-    if ( stream->resolution > channel->attr.resolution )
-    {
-        channel->attr.resolution = stream->resolution;
-    }
-
-    /* insertion sort to keep higher resolution streams first */
-    tStream * strm;
-    tStream ** prev = &channel->stream;
-    for ( strm = channel->stream; strm != NULL; strm = strm->next )
-    {
-        if ( stream->resolution > strm->resolution  )
+        if (chan == NULL)
         {
-            stream->next = strm;
+            /* didn't find it, so add new channel to the end of the chain */
+            *prevChan = channel;
+        }
+
+        /* keep track of the best resolution stream seen  */
+        if ( stream->resolution > channel->attr.resolution )
+        {
+            channel->attr.resolution = stream->resolution;
+        }
+
+        /* insertion sort to keep higher resolution streams first */
+        tStream * strm;
+        tStream ** prev = &channel->stream;
+        for ( strm = channel->stream; strm != NULL; strm = strm->next )
+        {
+            if ( stream->resolution > strm->resolution  )
+            {
+                stream->next = strm;
+                *prev = stream;
+                break;
+            }
+            prev = &strm->next;
+        }
+        if (strm == NULL)
+        {
+            /* resolution is not higher than any existing stream. so tack it on the end */
             *prev = stream;
-            break;
         }
-        prev = &strm->next;
-    }
-    if (strm == NULL)
-    {
-        /* resolution is not higher than any existing stream. so tack it on the end */
-        *prev = stream;
     }
 
     return channel;
@@ -781,6 +786,11 @@ void importM3U( tBuffer * buffer )
 
 void exportChannel( FILE * output, tChannel * channel )
 {
+#if 0
+    dumpGroup( output, channel->group );
+    dumpChannel( output, channel );
+    dumpStreams( output, channel->stream );
+#else
     fprintf( output, "#EXTINF:-1 tvg-id=\"%s\" tvg-name=\"%s\" tvg-logo=\"%s\" group-title=\"%s\",%s\n%s\n",
              channel->entry->tvg_id,
              channel->attr.name,
@@ -788,7 +798,8 @@ void exportChannel( FILE * output, tChannel * channel )
              channel->group->attr.name,
              channel->attr.name,
              channel->stream->url );
-    // dumpStreams( channel->stream );
+    // dumpStreams( output, channel->stream );
+#endif
 }
 
 void exportM3U( FILE * output )

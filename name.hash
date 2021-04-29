@@ -12,7 +12,7 @@ mappings:
     ignoreCase = true
 
     # mark these characters as 'kNameSeparator'
-    Separator = " :|-()[]"
+    Separator = " :|()[]"
 }
 
 # the strings to hash into the enum
