@@ -487,24 +487,18 @@ void processName( const char * name, tAttr * attr )
     attr->hash = hashString( temp, gNameCharMap );
 
     int len = 0;
-    if ( attr->resolution != kResolutionUnknown && dl > 5 )
-    {
-        if (attr->country != kCountryUnknown)
-        {
-            len = snprintf( dp, dl, " (%s,%s)",
-                            lookupResolutionAsString[ attr->resolution ],
-                            lookupCountryAsString[ attr->country ]);
-        }
-        else {
-            len = snprintf( dp, dl, " (%s)", lookupResolutionAsString[ attr->resolution ] );
-        }
-    }
-    else if ( attr->country != kCountryUnknown && dl > 5 )
+    if ( attr->country != kCountryUnknown && dl > 5 )
     {
         len = snprintf( dp, dl, " (%s)", lookupCountryAsString[ attr->country ] );
+        dp += len;
+        dl -= len;
     }
-    dp += len;
-    dl -= len;
+    if ( attr->resolution != kResolutionUnknown && dl > 5 )
+    {
+        len = snprintf( dp, dl, " [%s]", lookupResolutionAsString[ attr->resolution ] );
+        dp += len;
+        dl -= len;
+    }
 
     attr->name = strdup( temp );
 }
