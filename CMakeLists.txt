@@ -29,6 +29,6 @@ add_executable( mungeM3U
                 buffer.c buffer.h
                 affiliate.h country.h fccdata.h genre.h
                 keyword.h name.h nielsenDMA.h resolution.h
-                region.h usstationdata.h )
+                usstate.h usstationdata.h )
 
 target_link_libraries(mungeM3U argtable3 hashstrings m)

@@ -24,17 +24,19 @@
 #include "keyword.h"
 #include "name.h"
 #include "country.h"
+#include "countryCodes.h"
 #include "genre.h"
 #include "resolution.h"
 #include "fccdata.h"
 #include "nielsenDMA.h"
 #include "languages.h"
-#include "region.h"
+#include "usstate.h"
 #include "usstationdata.h"
 
 /* first pass parsing the line */
 
-/* these are common attributes that may occur in the channel and/or group name
+/*
+ * these are common attributes that may occur in the channel and/or group name
  * so they are handled using a common structure & parsing. Attributes defined at
  * the group level are assumed to be inherited by every channel in the group,
  * unless the channel name itself has keywords to override that.
@@ -43,6 +45,7 @@ typedef struct sAttr {
     const char *      name;
     tHash             hash;
     tCountryIndex     country;
+    tRegionIndex      region;
     tLanguage         language;
     tGenreIndex       genre;
     tAffiliateIndex   affiliate;
@@ -100,6 +103,9 @@ struct {
     } head;
 } global;
 
+void dumpChannel( FILE * output, tChannel * channel );
+
+
 /**
  * @brief Decide if a channel should be included in the output M3U
  *
@@ -117,38 +123,51 @@ bool isEnabled( tChannel * channel )
     (void)channel;
     bool result = true;
 #else
-    bool result = false;
+    bool  result = false;
     tAttr * attr = &channel->attr;
 
     /* only channels that are in the english language */
     result = ( attr->language == kLanguageEnglish );
+    if ( result != true )
+    {
+        fprintf( stderr, "Language ");
+        dumpChannel( stderr, channel );
+    }
     if ( result )
     {
         /* filter out all the +1 channels */
         if ( attr->isPlus1 )
         {
             result = false;
+            fprintf( stderr, "  Plus 1 ");
+            dumpChannel( stderr, channel );
         }
     }
+
     if ( result )
     {
         /* trim down to just UK and Canadian channels */
         switch ( attr->country )
         {
-        case kCountryCA:
-        case kCountryUK:
+        case kCountryCanada:
+        case kCountryUnitedKingdom:
             result = true;
             break;
 
         default:
+            fprintf( stderr, " Country ");
+            dumpChannel( stderr, channel );
             result = false;
             break;
         }
     }
+
     /* nuke all the 'live only during events' channels (typically sports) */
     if ( result && attr->isLive )
     {
         result = false;
+        //fprintf( stderr, "    Live ");
+        //dumpChannel( stderr, channel );
     }
     if (result)
     {
@@ -165,6 +184,8 @@ bool isEnabled( tChannel * channel )
         case kGenreTwentyFourSeven:
         case kGenreVideoOnDemand:
             result = false;
+            //fprintf( stderr, "   Genre ");
+            //dumpChannel( stderr, channel );
             break;
 
             /* the regional channels can bump up the channel count significantly.
@@ -177,13 +198,22 @@ bool isEnabled( tChannel * channel )
                 result = ( USStationData[ attr->usStation ].nielsenDMAIdx == kNielsenDMASFBayArea );
             }
             /* nuke the multitude of regional channels in the UK */
-            if ( attr->country == kCountryUK )
+            if ( attr->country == kCountryUnitedKingdom )
             {
                 result = false;
             }
+#if 0
+            if ( result == false )
+            {
+                fprintf( stderr, "Regional ");
+                dumpChannel( stderr, channel );
+            }
+#endif
             break;
 
+        case kGenreUnknown:
         default: /* suppress the compiler warning by being explicit */
+            result = true;
             break;
         }
     }
@@ -235,8 +265,8 @@ void freeGroup( tGroup * group )
 {
     if (group != NULL)
     {
-        free((void *) group->attr.name );
-        free((void *) group );
+        free( (void *) group->attr.name );
+        free( (void *) group );
     }
 }
 
@@ -255,7 +285,7 @@ void dumpAttrs( FILE * output, tAttr * attr)
         fprintf( output, ", callsign: \"%s\"",
                  USStationData[ attr->usStation ].callsign );
         fprintf( output, ", region: %s",
-                 lookupRegionAsString[ USStationData[ attr->usStation ].stateIdx ] );
+                 lookupUSStateAsString[ USStationData[ attr->usStation ].stateIdx ] );
         fprintf( output, ", DMA: \"%s\"",
                  lookupNielsenDMAAsString[ USStationData[ attr->usStation ].nielsenDMAIdx ] );
     }
@@ -266,6 +296,10 @@ void dumpAttrs( FILE * output, tAttr * attr)
     if ( attr->country != kCountryUnknown )
     {
         fprintf( output, ", country: %s", lookupCountryAsString[attr->country] );
+    }
+    if ( attr->region != kRegionUnknown )
+    {
+        fprintf( output, ", region: %s", lookupRegionAsString[attr->region] );
     }
     if ( attr->language != kLanguageUnknown )
     {
@@ -334,9 +368,13 @@ bool processAttr( tHash hash, tAttr * attr )
     if ( attr->country == kCountryUnknown && assignHash( mapCountrySearch, hash, &attr->country ))
     {
         swallow = true;
+        if ( attr->region == kRegionUnknown )
+        {
+            attr->region = countryToRegion[ attr->country ];
+        }
         if ( attr->language == kLanguageUnknown )
         {
-            attr->language = countryToLanguage[attr->country];
+            attr->language = countryToLanguage[ attr->country ];
         }
     }
 
@@ -347,6 +385,11 @@ bool processAttr( tHash hash, tAttr * attr )
         swallow = true;
         break;
 
+    case kNameFrenchCanadian:
+        attr->language = kLanguageFrench;
+        swallow = true;
+        break;
+
     case kNamePlus1:
         attr->isPlus1 = true;
         break;
@@ -354,30 +397,27 @@ bool processAttr( tHash hash, tAttr * attr )
     case kNameLive:
         attr->isLive = true;
         break;
-
-    case kNameFrenchCanadian:
-        attr->language = kLanguageFrench;
-        break;
     }
 
-    if (assignHash( mapResolutionSearch, hash, &attr->resolution ))
+    if ( assignHash( mapResolutionSearch, hash, &attr->resolution ) )
     {
         swallow = true;
     }
 
-    if ( attr->country == kCountryUS || attr->country == kCountryCA )
+    if ( attr->country == kCountryUnitedStates || attr->country == kCountryCanada )
     {
         assignHash( mapUSCallsignSearch, hash, &attr->usStation );
         if ( attr->usStation != kUSCallsignUnknown )
         {
-            attr->country   = kCountryUS;
+            attr->country   = kCountryUnitedStates;
             attr->genre     = kGenreRegional;
             attr->affiliate = USStationData[ attr->usStation ].affiliateIdx;
         }
     }
 
-    /* if a US Station callsign was already found, then genre has already been set to 'regional' */
-    if ( attr->genre == kGenreUnknown )
+    /* if a US Station callsign was already found, then genre has already been set to 'regional'
+     * Allow a second genre to override 'sports', since group names of 'sports and entertainment' are common*/
+    if ( attr->genre == kGenreUnknown || attr->genre == kGenreSports )
     {
         assignHash( mapGenreSearch, hash, &attr->genre );
     }
@@ -423,7 +463,7 @@ void processName( const char * name, tAttr * attr )
     char *        dp;
     int           dl;
     tHash         hash;
-    char          temp[200];
+    char          temp[250];
 
     /* first extract any attributes embedded in the channel name,
      * tags like 'VIP', 'UK', 'HD', etc. See name.hash */
@@ -470,7 +510,6 @@ void processName( const char * name, tAttr * attr )
                 }
 
                 *dp = '\0';
-                // fprintf(stderr,"\"%s\"\n", temp);
                 hash = 0;
             }
         }
@@ -486,20 +525,6 @@ void processName( const char * name, tAttr * attr )
     /* calculate the hash before the prefixes are added */
     attr->hash = hashString( temp, gNameCharMap );
 
-    int len = 0;
-    if ( attr->country != kCountryUnknown && dl > 5 )
-    {
-        len = snprintf( dp, dl, " (%s)", lookupCountryAsString[ attr->country ] );
-        dp += len;
-        dl -= len;
-    }
-    if ( attr->resolution != kResolutionUnknown && dl > 5 )
-    {
-        len = snprintf( dp, dl, " [%s]", lookupResolutionAsString[ attr->resolution ] );
-        dp += len;
-        dl -= len;
-    }
-
     attr->name = strdup( temp );
 }
 
@@ -512,9 +537,11 @@ void processName( const char * name, tAttr * attr )
 tChannel * processChannelName( tChannel * channel, const char * name )
 {
     processName( name, &channel->attr );
+
     tStream * stream = newStream();
     if ( stream != NULL )
     {
+        /* haven't de-dup'd the channel yet, so remember any channel-specific attributes before they are lost */
         stream->isVIP      = channel->attr.isVIP;
         stream->resolution = channel->attr.resolution;
         stream->url        = channel->entry->url;
@@ -526,7 +553,7 @@ tChannel * processChannelName( tChannel * channel, const char * name )
         {
             /* make such the country matches, too - we removed it earlier */
             if ( channel->attr.hash    == chan->attr.hash
-                 && channel->attr.country == chan->attr.country )
+              && channel->attr.country == chan->attr.country )
             {
                 /* channel already exists, so discard the local one */
                 freeChannel( channel );
@@ -611,25 +638,25 @@ void inheritAttr( tGroup * group, tChannel * channel, tStream * stream )
     /* inherit attributes from group, as applicable */
 
     if (channel->attr.country == kCountryUnknown
-     && group->attr.country   != kCountryUnknown )
+       && group->attr.country != kCountryUnknown )
     {
         channel->attr.country = group->attr.country;
     }
 
     if ( channel->attr.language == kLanguageUnknown
-      && group->attr.language   != kLanguageUnknown )
+        && group->attr.language != kLanguageUnknown )
     {
         channel->attr.language = group->attr.language;
     }
 
     if (channel->attr.genre == kGenreUnknown
-     && group->attr.genre   != kGenreUnknown)
+       && group->attr.genre != kGenreUnknown)
     {
         channel->attr.genre = group->attr.genre;
     }
 
     if ( channel->attr.affiliate == kAffiliateUnknown
-      && group->attr.affiliate   != kAffiliateUnknown )
+        && group->attr.affiliate != kAffiliateUnknown )
     {
         channel->attr.affiliate = group->attr.affiliate;
     }
@@ -659,9 +686,12 @@ void importM3U( tBuffer * buffer )
     tHash hash = 0;
     tHash assignmentHash = 0;
     tEntry * entry;
+    const char * line;
 
-    global.head.entry = calloc( 1, sizeof(tEntry));
+    global.head.entry = calloc( 1, sizeof(tEntry) );
     entry = global.head.entry;
+
+    bufferDropAnchor( buffer );
 
     while ( bufferGetRemaining( buffer ) > 0 )
     {
@@ -669,19 +699,28 @@ void importM3U( tBuffer * buffer )
         switch ( w )
         {
         case kKeywordEOL: /* check hash for a known keyword */
-            // fprintf( stderr, "eol: 0x%016lx ", hash );
-            // bufferPrintToEOL( stderr, buffer );
-            switch ( findHash( mapKeywordSearch,hash) )
+            if ( hash != 0 )
             {
-            case kKeywordEXTM3U:
-                // fprintf(stderr, "[File Start]\n" );
-                break;
+                // fprintf( stderr, "eol: 0x%016lx ", hash );
+                // bufferPrintToEOL( stderr, buffer );
+                switch ( findHash( mapKeywordSearch, hash ))
+                {
+                case kKeywordEXTM3U:
+                    // fprintf(stderr, "[File Start]\n" );
+                    break;
 
-            default:
-                fprintf( stderr, "### unknown line\n" );
-                break;
+                default:
+                    line = bufferGetAnchorString( buffer );
+                    if ( line != NULL)
+                    {
+                        fprintf( stderr, "### unknown line: \'%s\'\n", line );
+                        free((void *)line );
+                    }
+                    break;
+                }
+                hash = 0;
+                bufferDropAnchor( buffer );
             }
-            hash = 0;
             break;
 
         case kKeywordSeparator: /* check hash for a known keyword */
@@ -690,14 +729,21 @@ void importM3U( tBuffer * buffer )
                 switch ( findHash( mapKeywordSearch, hash ))
                 {
                 case kKeywordEXTINF:
-                    // fprintf( stderr, "Entry " );
+                    // bufferPrintToEOL(stderr, buffer );
                     break;
 
                 default:
-                    fprintf( stderr, "### unknown sep: 0x%016lx\n", hash );
+                    line = bufferGetAnchorString( buffer );
+                    if ( line != NULL)
+                    {
+                        fprintf( stderr, "### unknown keyword: 0x%016lx, \'%s\'\n", hash, line );
+                        bufferPrintToEOL( stderr, buffer );
+                        free( (void *)line );
+                    }
                     break;
                 }
                 hash = 0;
+                bufferDropAnchor( buffer );
             }
             break;
 
@@ -711,7 +757,7 @@ void importM3U( tBuffer * buffer )
 
         case kKeywordQuote:
             str = bufferGetQuotedString( buffer );
-            if ( str != NULL)
+            if ( str != NULL )
             {
                 switch ( findHash( mapKeywordSearch, assignmentHash ) )
                 {
@@ -751,6 +797,7 @@ void importM3U( tBuffer * buffer )
                 assignmentHash = 0;
             }
             hash = 0;
+            bufferDropAnchor( buffer );
 
             break;
 
@@ -764,9 +811,10 @@ void importM3U( tBuffer * buffer )
             entry->url = str;
 
             hash = 0;
+            bufferDropAnchor( buffer );
 
             /* get ourselves a fresh block to populate */
-            entry->next = calloc( 1, sizeof(tEntry));
+            entry->next = calloc( 1, sizeof(tEntry) );
             entry = entry->next;
             break;
 
@@ -785,14 +833,32 @@ void exportChannel( FILE * output, tChannel * channel )
     dumpChannel( output, channel );
     dumpStreams( output, channel->stream );
 #else
-    fprintf( output, "#EXTINF:-1 tvg-id=\"%s\" tvg-name=\"%s\" tvg-logo=\"%s\" group-title=\"%s\",%s\n%s\n",
+    char    country[20];
+    char    resolution[20];
+
+    country[0] = '\0';
+    if ( channel->attr.country != kCountryUnknown )
+    {
+        snprintf( country, sizeof(country), " (%s)", lookupCountryAsString[ channel->attr.country ] );
+    }
+    resolution[0] = '\0';
+    if ( channel->attr.resolution != kResolutionUnknown )
+    {
+        snprintf( resolution, sizeof(resolution), " [%s]", lookupResolutionAsString[ channel->attr.resolution ] );
+    }
+
+    if ( channel->group->attr.name == NULL || strlen( channel->group->attr.name ) == 0 )
+    {
+        channel->group->attr.name = lookupFullCountryAsString[ channel->group->attr.country ];
+    }
+
+    fprintf( output, "#EXTINF:-1 tvg-id=\"%s\" tvg-name=\"%s%s%s\" tvg-logo=\"%s\" group-title=\"%s\",%s%s%s\n%s\n",
              channel->entry->tvg_id,
-             channel->attr.name,
+             channel->attr.name, country, resolution,
              channel->entry->tvg_logo,
              channel->group->attr.name,
-             channel->attr.name,
+             channel->attr.name, country, resolution,
              channel->stream->url );
-    // dumpStreams( output, channel->stream );
 #endif
 }
 
@@ -946,19 +1012,19 @@ int main( int argc, char * argv[] )
     }
     else
     {
-        result = 0;
-        int i = 0;
-
         global.outputFile = NULL;
 
+#if 0
         const char * extension = ".h";
         if ( gOption.extn->count != 0 )
         {
             extension = *gOption.extn->sval;
         }
-
-        while ( i < gOption.file->count && result == 0 )
+#endif
+        result = 0;
+        for ( int i = 0; i < gOption.file->count && result == 0; i++ )
         {
+#if 0
             char output[FILENAME_MAX];
             strncpy( output, gOption.file->filename[i], sizeof( output ));
 
@@ -976,14 +1042,14 @@ int main( int argc, char * argv[] )
                          output, errno, strerror(errno));
                 result = errno;
             }
-
+#endif
             if ( result == 0 )
             {
                 result = processFile( gOption.file->filename[i] );
             }
-            i++;
-
+#if 0
             fclose( global.outputFile );
+#endif
         }
     }
 
