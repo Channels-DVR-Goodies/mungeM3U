@@ -29,12 +29,13 @@ keywords = [
     "Music,Music,Musik,Muziek,Música,Radio,MTV",
     "News,News,Nachrichten,Nieuws,CNN,MSNBC",
     "PayPerView,PayPerView,PPV",
-    "Regional,Regional,Regionals,Regionaal,Local,Locals,Network",
+    "Regional,Regional,Regionals,Regionaal,Local,Locals",
     "Religious,Religious,Religion,Church,Prayer,Worship,God,Christian",
     "Shopping,Shopping,Einkaufen,QVC,HSN",
-    "Sports,Sports,Sport,Game,Racing,Betting,Athletic,League,Championship,Challenge,Formula,Motorsport,Motorsports,"
-        "Football,Soccer,Rugby,Cricket,Golf,F1,Motocross,MotoGP,rally,"
+    "Sports,Sports,Sport,EuroSports,Game,Team,Racing,Betting,Fight,Athletic,League,Championship,Challenge,"
+        "Formula,Motorsport,Motorsports,Rally,"
+        "Football,Soccer,Rugby,Cricket,Golf,F1,Motocross,MotoGP,"
         "MLB,NBA,NFL,NHL,ESPN,ESPN+,CBSN,PAC-12,PAC12",
-    "TwentyFourSeven,247,24x7,24/7",
+    "24x7,24x7,247,24/7",
     "VideoOnDemand,VideoOnDemand,OnDemand,VOD"
 ]

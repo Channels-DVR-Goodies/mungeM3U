@@ -1,0 +1,73 @@
+//
+//
+
+prefix = "Capitalization"
+
+# the character mapping array
+# array starts out mapping one-to-one, i.e. input = output
+#
+mappings:
+{
+    # make the generated hashes case-insensitive
+    ignoreCase = true
+
+    # mark these characters as 'kCountrySeparator'
+    Separator = " -:|()[]"
+}
+
+# the strings to hash into the enum
+# if there is a comma, first string is for symbol, subsequent strings are to hash
+#
+keywords = [
+    "AandE,A&E",
+    "ABC",
+    "AMC",
+    "AMI",
+    "and",
+    "BBC",
+    "BET",
+    "BNN",
+    "CBBC",
+    "CBC",
+    "CBS",
+    "CITV",
+    "CMT",
+    "CNN",
+    "CP24",
+    "CPAC",
+    "CTV",
+    "DIY",
+    "DMAX",
+    "FX",
+    "FXX",
+    "HBO",
+    "HGTV",
+    "HLN",
+    "ID",
+    "ITV",
+    "MAVTV",
+    "MSNBC",
+    "MTA",
+    "MTV",
+    "NBC",
+    "NTV",
+    "OLN",
+    "OWN",
+    "PBS",
+    "RTE",
+    "SIS",
+    "STV",
+    "TCM",
+    "TLC",
+    "TLN",
+    "TV",
+    "TVO",
+    "UK",
+    "US",
+    "USA",
+    "UTV",
+    "VH",
+    "VH1",
+    "XD",
+    "YTV"
+]

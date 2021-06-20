@@ -19,10 +19,12 @@ mappings:
 # if there is a comma, first string is for symbol, subsequent strings are to hash
 #
 keywords = [
-    "TV",
     "Chan,Chan,Channel",
     "VIP",
-    "Plus1,+1",
+    "Plus1,+1,Plus1",
     "Live,Live,Event,Events",
-    "FrenchCanadian,French,FR,FR-CA,Quebec,Montreal"
+    "FrenchCanadian,French,FR,FR-CA,Quebec,Montreal",
+    "Indian,Indian,Ind,Indi,Indi-,Desi",
+    "Spanish,Spanish,Espanol,ES",
+    "ExYu,Ex-Yugoslavia,ExYu,Ex-Yu"
 ]
