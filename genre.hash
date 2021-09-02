@@ -26,15 +26,15 @@ keywords = [
     "Documentary,Documentary,Documentaries,Documentaires,Dokus,Documentários,History",
     "Entertainment,Entertainment,Ent,Unterhaltung,Entretenimento",
     "Movies,Movies,Movie,Film,Filme,Filmes,Cinema,HBO,Starz,Cinemax,AMC,TCM",
-    "Music,Music,Musik,Muziek,Música,Radio,MTV",
+    "Music,Music,Musik,Muziek,Música,Radio,MTV,Stingray",
     "News,News,Nachrichten,Nieuws,CNN,MSNBC",
     "PayPerView,PayPerView,PPV",
     "Regional,Regional,Regionals,Regionaal,Local,Locals",
     "Religious,Religious,Religion,Church,Prayer,Worship,God,Christian",
     "Shopping,Shopping,Einkaufen,QVC,HSN",
     "Sports,Sports,Sport,EuroSports,Game,Team,Racing,Betting,Fight,Athletic,League,Championship,Challenge,"
-        "Formula,Motorsport,Motorsports,Rally,"
-        "Football,Soccer,Rugby,Cricket,Golf,F1,Motocross,MotoGP,"
+        "Formula,Motorsport,Motorsports,Rally,F1,Motocross,MotoGP,"
+        "Football,Soccer,Rugby,Cricket,Golf,EFL,"
         "MLB,NBA,NFL,NHL,ESPN,ESPN+,CBSN,PAC-12,PAC12",
     "24x7,24x7,247,24/7",
     "VideoOnDemand,VideoOnDemand,OnDemand,VOD"

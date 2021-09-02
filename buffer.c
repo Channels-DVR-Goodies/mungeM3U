@@ -117,13 +117,17 @@ const char * bufferGetStringToEOL( tBuffer * buffer )
         buffer->remaining--;
     }
 
-    result = malloc( len + 1 );
-
-    if ( result != NULL)
+    result = NULL;
+    if ( len > 0 )
     {
-        memcpy( result, start, len );
-        /* always null-terminated */
-        result[len] = '\0';
+        result = malloc( len + 1 );
+
+        if ( result != NULL )
+        {
+            memcpy( result, start, len );
+            /* always null-terminated */
+            result[len] = '\0';
+        }
     }
     return (const char *)result;
 }

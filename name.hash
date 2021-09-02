@@ -12,7 +12,7 @@ mappings:
     ignoreCase = true
 
     # mark these characters as 'kNameSeparator'
-    Separator = " :|()[]"
+    Separator = " :|"
 }
 
 # the strings to hash into the enum
@@ -23,8 +23,5 @@ keywords = [
     "VIP",
     "Plus1,+1,Plus1",
     "Live,Live,Event,Events",
-    "FrenchCanadian,French,FR,FR-CA,Quebec,Montreal",
-    "Indian,Indian,Ind,Indi,Indi-,Desi",
-    "Spanish,Spanish,Espanol,ES",
-    "ExYu,Ex-Yugoslavia,ExYu,Ex-Yu"
+    "FrenchCanadian,French,(French),FR,(FR),FR-CA,Quebec,Montreal"
 ]

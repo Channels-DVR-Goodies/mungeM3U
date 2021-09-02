@@ -30,6 +30,7 @@ mappings:
 keywords = [
     "EXTM3U,#EXTM3U",
     "EXTINF,#EXTINF:-1",
+    "XUI,xui-id",
     "ID,tvg-id",
     "Name,tvg-name",
     "Logo,tvg-logo",
