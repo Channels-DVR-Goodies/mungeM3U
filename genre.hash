@@ -21,21 +21,21 @@ mappings:
 keywords = [
     "Adult,Adult,XXX,Porn",
     "Catchup,Catchup,Catch-Up",
-    "Children,Children,Childrens,Kid,Kids,Kinder,Kinderen,Infantil,Youth",
+    "Children,Children,Childrens,Youth,Cartoon,Cartoons,Kid,Kids,Kinder,Kinderen,Enfants,Infantil,Bambini",
     "Civic,Civic,Council,Court,Legislative,Congress,Parliament,C-Span,CSpan",
-    "Documentary,Documentary,Documentaries,Documentaires,Dokus,Documentários,History",
-    "Entertainment,Entertainment,Ent,Unterhaltung,Entretenimento",
+    "Documentary,Documentary,Documentaries,Documentaires,Dokus,Documentários,Decouvertes,Cultura,History",
+    "Entertainment,Entertainment,Ent,Divertissement,Unterhaltung,Entretenimiento,Entretenimento,Intrattenimento",
     "Movies,Movies,Movie,Film,Filme,Filmes,Cinema,HBO,Starz,Cinemax,AMC,TCM",
-    "Music,Music,Musik,Muziek,Música,Radio,MTV,Stingray",
+    "Music,Music,Musik,Muziek,Música,Musica,Radio,MTV,Stingray",
     "News,News,Nachrichten,Nieuws,CNN,MSNBC",
-    "PayPerView,PayPerView,PPV",
+    "Country",
     "Regional,Regional,Regionals,Regionaal,Local,Locals",
-    "Religious,Religious,Religion,Church,Prayer,Worship,God,Christian",
+    "Religious,Religious,Religion,Church,Prayer,Worship,God,Christian,Islamic,Islam,Hindu",
+    "Series,Series,Shows",
     "Shopping,Shopping,Einkaufen,QVC,HSN",
-    "Sports,Sports,Sport,EuroSports,Game,Team,Racing,Betting,Fight,Athletic,League,Championship,Challenge,"
+    "Sports,Sports,Sport,EuroSports,"
+        "Game,Games,Olympic,Olympics,Team,Racing,Betting,Fight,Athletic,League,Championship,Challenge,"
         "Formula,Motorsport,Motorsports,Rally,F1,Motocross,MotoGP,"
         "Football,Soccer,Rugby,Cricket,Golf,EFL,"
-        "MLB,NBA,NFL,NHL,ESPN,ESPN+,CBSN,PAC-12,PAC12",
-    "24x7,24x7,247,24/7",
-    "VideoOnDemand,VideoOnDemand,OnDemand,VOD"
+        "MLB,NBA,NCAA,NFL,NHL,UFC,WCW,WWE,ESPN,ESPN+,CBSN,PAC-12,PAC12"
 ]
