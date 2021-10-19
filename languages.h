@@ -15,9 +15,14 @@
 
 typedef enum
 {
-    kLanguageUnknown = 0,
+    kLanguageUnset = 0,
+    kLanguageUnknown,
     kLanguageVarious,
+    kLanguageAlbanian,
     kLanguageArabic,
+    kLanguageAzerbaijan,
+    kLanguageBengali,
+    kLanguageCatalan,
     kLanguageChinese,
     kLanguageDanish,
     kLanguageDutch,
@@ -28,7 +33,9 @@ typedef enum
     kLanguageGreek,
     kLanguageHindi,
     kLanguageHungarian,
+    kLanguageItalian,
     kLanguageJapanese,
+    kLanguagePashto,
     kLanguagePolish,
     kLanguagePortuguese,
     kLanguageRussian,
@@ -41,52 +48,59 @@ typedef enum
 
 const char * lookupLanguageAsString[] =
 {
-       [kLanguageUnknown]    = "Unknown",
-       [kLanguageVarious]    = "Various",
-       [kLanguageArabic]     = "Arabic",
-       [kLanguageChinese]    = "Chinese",
-       [kLanguageDanish]     = "Danish",
-       [kLanguageDutch]      = "Dutch",
-       [kLanguageEnglish]    = "English",
-       [kLanguageFinnish]    = "Finnish",
-       [kLanguageFrench]     = "French",
-       [kLanguageGerman]     = "German",
-       [kLanguageGreek]      = "Greek",
-       [kLanguageHindi]      = "Hindi",
-       [kLanguageHungarian]  = "Hungarian",
-       [kLanguageJapanese]   = "Japanese",
-       [kLanguagePolish]     = "Polish",
-       [kLanguagePortuguese] = "Portuguese",
-       [kLanguageRussian]    = "Russian",
-       [kLanguageSpanish]    = "Spanish",
-       [kLanguageSwedish]    = "Swedish",
-       [kLanguageSwiss]      = "Swiss",
-       [kLanguageTurkish]    = "Turkish"
+    [kLanguageUnset]      = "Not set",
+    [kLanguageUnknown]    = "Unknown",
+    [kLanguageVarious]    = "Various",
+    [kLanguageArabic]     = "Arabic",
+    [kLanguageAlbanian]   = "Albanian",
+    [kLanguageAzerbaijan] = "Azerbaijan",
+    [kLanguageBengali]    = "Bengali",
+    [kLanguageCatalan]    = "Catalon",
+    [kLanguageChinese]    = "Chinese",
+    [kLanguageDanish]     = "Danish",
+    [kLanguageDutch]      = "Dutch",
+    [kLanguageEnglish]    = "English",
+    [kLanguageFinnish]    = "Finnish",
+    [kLanguageFrench]     = "French",
+    [kLanguageGerman]     = "German",
+    [kLanguageGreek]      = "Greek",
+    [kLanguageHindi]      = "Hindi",
+    [kLanguageHungarian]  = "Hungarian",
+    [kLanguageItalian]    = "Italian",
+    [kLanguageJapanese]   = "Japanese",
+    [kLanguagePashto]     = "Pashto",
+    [kLanguagePolish]     = "Polish",
+    [kLanguagePortuguese] = "Portuguese",
+    [kLanguageRussian]    = "Russian",
+    [kLanguageSpanish]    = "Spanish",
+    [kLanguageSwedish]    = "Swedish",
+    [kLanguageSwiss]      = "Swiss",
+    [kLanguageTurkish]    = "Turkish"
 };
 
 
 tLanguage countryToLanguage[]   =
 {
-    [ kCountryUnknown ]        = kLanguageUnknown,
+    [ kCountryUnset ]          = kLanguageUnset,
     [ kCountryArmenia ]        = kLanguageUnknown,
-    [ kCountryAfghanistan ]    = kLanguageUnknown,
-    [ kCountryAfrica ]         = kLanguageUnknown,
+    [ kCountryAfghanistan ]    = kLanguagePashto,
+    [ kCountryAfrica ]         = kLanguageAlbanian,
     [ kCountryAlbania ]        = kLanguageUnknown,
-    [ kCountryAlgeria ]        = kLanguageUnknown,
-    [ kCountryAmericanSamoa ]  = kLanguageUnknown,
-    [ kCountryAndorra ]        = kLanguageUnknown,
-    [ kCountryAngola ]         = kLanguageUnknown,
-    [ kCountryAnguilla ]       = kLanguageUnknown,
+    [ kCountryAlgeria ]        = kLanguageArabic,
+    [ kCountryAmericanSamoa ]  = kLanguageEnglish,
+    [ kCountryAndorra ]        = kLanguageCatalan,
+    [ kCountryAngola ]         = kLanguagePortuguese,
+    [ kCountryAnguilla ]       = kLanguageEnglish,
     [ kCountryArab ]           = kLanguageArabic,
-    [ kCountryArgentina ]      = kLanguageUnknown,
-    [ kCountryAruba ]          = kLanguageUnknown,
+    [ kCountryArgentina ]      = kLanguageSpanish,
+    [ kCountryAruba ]          = kLanguageDutch,
     [ kCountryAustralia ]      = kLanguageEnglish,
-    [ kCountryAustria ]        = kLanguageUnknown,
-    [ kCountryAzerbaijan ]     = kLanguageUnknown,
-    [ kCountryBahamas ]        = kLanguageUnknown,
-    [ kCountryBahrain ]        = kLanguageUnknown,
-    [ kCountryBangladesh ]     = kLanguageUnknown,
-    [ kCountryBarbados ]       = kLanguageUnknown,
+    [ kCountryAustria ]        = kLanguageHungarian,
+    [ kCountryAzerbaijan ]     = kLanguageAzerbaijan,
+    [ kCountryBahamas ]        = kLanguageEnglish,
+    [ kCountryBahrain ]        = kLanguageArabic,
+    [ kCountryBangladesh ]     = kLanguageBengali,
+    [ kCountryBarbados ]       = kLanguageEnglish,
     [ kCountryBelarus ]        = kLanguageUnknown,
     [ kCountryBelgium ]        = kLanguageUnknown,
     [ kCountryBelize ]         = kLanguageUnknown,
@@ -129,7 +143,7 @@ tLanguage countryToLanguage[]   =
     [ kCountryGabon ]          = kLanguageUnknown,
     [ kCountryGambia ]         = kLanguageUnknown,
     [ kCountryGeorgia ]        = kLanguageUnknown,
-    [ kCountryGermany ]        = kLanguageUnknown,
+    [ kCountryGermany ]        = kLanguageGerman,
     [ kCountryGhana ]          = kLanguageUnknown,
     [ kCountryGibraltar ]      = kLanguageUnknown,
     [ kCountryGreece ]         = kLanguageUnknown,
@@ -150,12 +164,12 @@ tLanguage countryToLanguage[]   =
     [ kCountryIndonesia ]      = kLanguageUnknown,
     [ kCountryIran ]           = kLanguageUnknown,
     [ kCountryIraq ]           = kLanguageUnknown,
-    [ kCountryIreland ]        = kLanguageUnknown,
+    [ kCountryIreland ]        = kLanguageEnglish,
     [ kCountryIsrael ]         = kLanguageUnknown,
-    [ kCountryItaly ]          = kLanguageUnknown,
+    [ kCountryItaly ]          = kLanguageItalian,
     [ kCountryJamaica ]        = kLanguageUnknown,
     [ kCountryJapan ]          = kLanguageUnknown,
-    [ kCountryJersey ]         = kLanguageUnknown,
+    [ kCountryJersey ]         = kLanguageEnglish,
     [ kCountryJordan ]         = kLanguageUnknown,
     [ kCountryKazakhstan ]     = kLanguageUnknown,
     [ kCountryKenya ]          = kLanguageUnknown,
@@ -264,7 +278,7 @@ tLanguage countryToLanguage[]   =
 
 tLanguage affiliateToLanguage[] =
     {
-        [kAffiliateUnknown]   = kLanguageUnknown,
+        [kAffiliateUnset]     = kLanguageUnset,
         [kAffiliateABC]       = kLanguageEnglish,   /* American or Australian Broadcasting Company */
         [kAffiliateBBC]       = kLanguageEnglish,   /* UK - British Broadcasting Company */
         [kAffiliateCBC]       = kLanguageEnglish,   /* Canada */
@@ -291,7 +305,7 @@ tLanguage affiliateToLanguage[] =
     };
 
 typedef enum {
-    kRegionUnknown = 0,
+    kRegionUnset = 0,
     kRegionOther,
     kRegionAfrica,
     kRegionAsia,
@@ -308,7 +322,7 @@ typedef enum {
 
 const char * lookupRegionAsString[] =
 {
-    [ kRegionUnknown ]       = "Unknown",
+    [ kRegionUnset ]         = "Not set",
     [ kRegionOther ]         = "Other",
     [ kRegionAfrica ]        = "Africa",
     [ kRegionAsia ]          = "Asia",
@@ -325,9 +339,9 @@ const char * lookupRegionAsString[] =
 
 tRegionIndex countryToRegion[] =
 {
-    [ kCountryUnknown ]        = kRegionUnknown,
-    [ kCountryArmenia ]        = kRegionOther,
-    [ kCountryAfghanistan ]    = kRegionOther,
+    [ kCountryUnset ]          = kRegionUnset,
+    [ kCountryArmenia ]        = kRegionAsia,
+    [ kCountryAfghanistan ]    = kRegionAsia,
     [ kCountryAfrica ]         = kRegionAfrica,
     [ kCountryAlbania ]        = kRegionOther,
     [ kCountryAlgeria ]        = kRegionOther,

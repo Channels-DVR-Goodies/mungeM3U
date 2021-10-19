@@ -7,7 +7,7 @@
 
 const char * lookupFullCountryAsString[] =
 {
-    [kCountryUnknown]        = "Unknown",
+    [kCountryUnset]          = "Unknown",
     [kCountryArmenia]        = "Armenia",
     [kCountryAfghanistan]    = "Afghanistan",
     [kCountryAfrica]         = "Africa",

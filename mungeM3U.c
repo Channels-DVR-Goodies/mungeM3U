@@ -164,7 +164,7 @@ bool isGroupDisabled( tGroup * group )
         {
         case kCountryUnitedStates:
             /* if we find a US Callsign, filter down to the SF Bay Area stations */
-            if ( common->usStation != kUSCallsignUnknown )
+            if ( common->usStation != kUSCallsignUnset )
             {
                 result = ( USStationData[ common->usStation ].nielsenDMAIdx != kNielsenDMASFBayArea );
             }
@@ -198,7 +198,7 @@ bool isGroupDisabled( tGroup * group )
 #endif
         break;
 
-    case kGenreUnknown:
+    case kGenreUnset:
     default:
         break;
     }
@@ -209,7 +209,7 @@ bool isGroupDisabled( tGroup * group )
     {
         switch ( common->country )
         {
-        case kCountryUnknown:
+        case kCountryUnset:
         case kCountryCanada:
         case kCountryUnitedKingdom:
             break;
@@ -285,7 +285,7 @@ bool isChannelDisabled( tChannel * channel )
         {
         case kCountryUnitedStates:
             /* if we find a US Callsign, filter down to the SF Bay Area stations */
-            if ( common->usStation != kUSCallsignUnknown )
+            if ( common->usStation != kUSCallsignUnset )
             {
                 result = ( USStationData[ common->usStation ].nielsenDMAIdx != kNielsenDMASFBayArea );
             }
@@ -319,7 +319,7 @@ bool isChannelDisabled( tChannel * channel )
 #endif
         break;
 
-    case kGenreUnknown:
+    case kGenreUnset:
     default:
         break;
     }
@@ -329,7 +329,7 @@ bool isChannelDisabled( tChannel * channel )
     {
         switch ( channel->common.country )
         {
-        case kCountryUnknown:
+        case kCountryUnset:
         case kCountryCanada:
         case kCountryUnitedKingdom:
             break;
@@ -529,11 +529,11 @@ void freeGroup( tGroup * group )
  */
 void dumpCommon( FILE * output, tCommon * common)
 {
-    if ( common->genre != kGenreUnknown )
+    if ( common->genre != kGenreUnset )
     {
         fprintf( output, ", genre: %s", lookupGenreAsString[ common->genre ] );
     }
-    if ( common->usStation != kUSCallsignUnknown )
+    if ( common->usStation != kUSCallsignUnset )
     {
         fprintf( output, ", callsign: \"%s\"",
                  USStationData[ common->usStation ].callsign );
@@ -542,20 +542,20 @@ void dumpCommon( FILE * output, tCommon * common)
         fprintf( output, ", DMA: \"%s\"",
                  lookupNielsenDMAAsString[ USStationData[ common->usStation ].nielsenDMAIdx ] );
     }
-    if ( common->affiliate != kAffiliateUnknown )
+    if ( common->affiliate != kAffiliateUnset )
     {
         fprintf( output, ", affiliate: %s", lookupAffiliateAsString[ common->affiliate ] );
     }
-    if ( common->region != kRegionUnknown )
+    if ( common->region != kRegionUnset )
     {
         fprintf( output, ", region: %s", lookupRegionAsString[ common->region ] );
     }
-    if ( common->language != kLanguageUnknown )
+    if ( common->language != kLanguageUnset )
     {
         fprintf( output, ", language: %s", lookupLanguageAsString[ common->language ] );
     }
 
-    if ( common->resolution != kResolutionUnknown )
+    if ( common->resolution != kResolutionUnset )
     {
         fprintf( output, ", resolution: %s", lookupResolutionAsString[ common->resolution ] );
     }
@@ -599,10 +599,10 @@ void dumpChannel( FILE * output, tChannel * channel )
     {
         fprintf( output, "name: %s", channel->common.name );
     }
-    if ( channel->common.country != kCountryUnknown )
+    if ( channel->common.country != kCountryUnset )
     {
         fprintf( output, ", country: %s", lookupFullCountryAsString[ channel->common.country ] );
-        if ( channel->common.country == kCountryCanada && channel->common.city != kCityUnknown )
+        if ( channel->common.country == kCountryCanada && channel->common.city != kCityUnset )
         {
             fprintf( output, ", city: %s", lookupCityAsString[ channel->common.city ] );
         }
@@ -624,10 +624,10 @@ void dumpGroup( FILE * output, tGroup * group )
     {
         fprintf( output, "name: %s", group->common.name );
     }
-    if ( group->common.country != kCountryUnknown )
+    if ( group->common.country != kCountryUnset )
     {
         fprintf( output, ", country: %s", lookupFullCountryAsString[group->common.country] );
-        if ( group->common.country == kCountryCanada && group->common.city != kCityUnknown )
+        if ( group->common.country == kCountryCanada && group->common.city != kCityUnset )
         {
             fprintf( output, ", city: %s", lookupCityAsString[group->common.city] );
         }
@@ -649,11 +649,11 @@ void dumpGroup( FILE * output, tGroup * group )
 bool assignHash( tRecord skipTable[], tHash hash, tIndex * setting )
 {
     tIndex index = findHash( skipTable, hash );
-    if ( index != kIndexUnknown && *setting == kIndexUnknown )
+    if ( index != kIndexUnset && *setting == kIndexUnset )
     {
         *setting = index;
     }
-    return (index != kIndexUnknown);
+    return (index != kIndexUnset);
 }
 
 /**
@@ -666,15 +666,15 @@ bool processCommonHash( tHash hash, tCommon * common )
 {
     bool swallow = false;
 
-    if ( common->country == kCountryUnknown && assignHash( mapCountrySearch, hash, &common->country ) )
+    if ( common->country == kCountryUnset && assignHash( mapCountrySearch, hash, &common->country ) )
     {
         swallow = true;
-        if ( common->region == kRegionUnknown )
+        if ( common->region == kRegionUnset )
         {
             common->region = countryToRegion[ common->country ];
         }
 
-        if ( common->language == kLanguageUnknown )
+        if ( common->language == kLanguageUnset )
         {
             common->language = countryToLanguage[ common->country ];
         }
@@ -724,7 +724,7 @@ bool processCommonHash( tHash hash, tCommon * common )
     if ( common->country == kCountryUnitedStates || common->country == kCountryCanada )
     {
         assignHash( mapUSCallsignSearch, hash, &common->usStation );
-        if ( common->usStation != kUSCallsignUnknown )
+        if ( common->usStation != kUSCallsignUnset )
         {
             common->country   = kCountryUnitedStates;
             common->genre     = kGenreRegional;
@@ -732,7 +732,7 @@ bool processCommonHash( tHash hash, tCommon * common )
         }
     }
 
-    if ( common->genre == kGenreUnknown && assignHash( mapCitySearch, hash, &common->city ) )
+    if ( common->genre == kGenreUnset && assignHash( mapCitySearch, hash, &common->city ) )
     {
         common->genre = kGenreRegional;
     }
@@ -740,13 +740,13 @@ bool processCommonHash( tHash hash, tCommon * common )
     /* if a US Station callsign was already found, then genre has already been set to 'regional' */
 
     /* Allow a second genre to override 'sports', since group names of 'sports and entertainment' are common*/
-    if ( common->genre == kGenreUnknown || common->genre == kGenreSports )
+    if ( common->genre == kGenreUnset || common->genre == kGenreSports )
     {
         assignHash( mapGenreSearch, hash, &common->genre );
     }
 
     /* This is a stronger indication of a station's language than the country, e.g. hispanic networks in the U.S. */
-    if (common->affiliate != kAffiliateUnknown)
+    if (common->affiliate != kAffiliateUnset)
     {
         common->language  = affiliateToLanguage[ common->affiliate ];
     }
@@ -766,7 +766,7 @@ void inheritChannel( tStream * stream, tChannel * channel )
     if ( stream != NULL && channel != NULL )
     {
         /* inherit resolution from channel if stream resolution is not set */
-        if ( stream->resolution == kResolutionUnknown )
+        if ( stream->resolution == kResolutionUnset )
         {
             stream->resolution = channel->common.resolution;
         }
@@ -789,32 +789,32 @@ void inheritGroup( tChannel * channel, tGroup * group )
     if ( channel != NULL && group != NULL )
     {
         /* copy over any unset attributes from group to channel */
-        if ( channel->common.country == kCountryUnknown
-            && group->common.country != kCountryUnknown )
+        if ( channel->common.country == kCountryUnset
+            && group->common.country != kCountryUnset )
         {
             channel->common.country = group->common.country;
         }
 
-        if ( channel->common.language == kLanguageUnknown
-            && group->common.language != kLanguageUnknown )
+        if ( channel->common.language == kLanguageUnset
+            && group->common.language != kLanguageUnset )
         {
             channel->common.language = group->common.language;
         }
 
-        if ( channel->common.genre == kGenreUnknown
-            && group->common.genre != kGenreUnknown )
+        if ( channel->common.genre == kGenreUnset
+            && group->common.genre != kGenreUnset )
         {
             channel->common.genre = group->common.genre;
         }
 
-        if ( channel->common.affiliate == kAffiliateUnknown
-            && group->common.affiliate != kAffiliateUnknown )
+        if ( channel->common.affiliate == kAffiliateUnset
+            && group->common.affiliate != kAffiliateUnset )
         {
             channel->common.affiliate = group->common.affiliate;
         }
 
         /* inherit resolution from group if channel resolution is not set */
-        if ( channel->common.resolution == kResolutionUnknown )
+        if ( channel->common.resolution == kResolutionUnset )
         {
             channel->common.resolution = group->common.resolution;
         }
@@ -944,7 +944,7 @@ void processName( const char * name, tCommon * common )
                 else
                 {
                     tCapitalizationIndex capitalize = findHash( mapCapitalizationSearch, hash );
-                    if ( capitalize != kCapitalizationUnknown )
+                    if ( capitalize != kCapitalizationUnset )
                     {
                         const char * p = lookupCapitalizationAsString[ capitalize ];
                         dp = stpcpy( sp, p );
@@ -993,7 +993,7 @@ void processName( const char * name, tCommon * common )
     }
 
     /* if we extracted a country, append it to the name */
-    if ( common->country != kCountryUnknown )
+    if ( common->country != kCountryUnset )
     {
         int len = strlen( temp );
         if ( len != 0 )
@@ -1006,7 +1006,7 @@ void processName( const char * name, tCommon * common )
             if ( fullCountry != NULL )
             {
                 strncpy( temp, fullCountry, sizeof(temp) );
-                if ( common->genre == kGenreUnknown )
+                if ( common->genre == kGenreUnset )
                 {
                     common->genre = kGenreCountry;
                 }
@@ -1332,7 +1332,7 @@ void exportChannel( FILE * output, tChannel * channel )
     char    country[20];
 
     country[0] = '\0';
-    if ( channel->common.country != kCountryUnknown )
+    if ( channel->common.country != kCountryUnset )
     {
         snprintf( country, sizeof(country), " (%s)", lookupCountryAsString[ channel->common.country ] );
     }
@@ -1341,7 +1341,7 @@ void exportChannel( FILE * output, tChannel * channel )
     char resolution[20];
 
     resolution[0] = '\0';
-    if ( channel->common.resolution != kResolutionUnknown )
+    if ( channel->common.resolution != kResolutionUnset )
     {
         snprintf( resolution, sizeof(resolution), " [%s]", lookupResolutionAsString[ channel->common.resolution ] );
     }
