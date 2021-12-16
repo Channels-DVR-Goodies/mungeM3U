@@ -7,10 +7,14 @@
 
 typedef struct {
     const char * pointer;
+    const char * anchor;
     size_t       remaining;
 } tBuffer;
 
 tBuffer * bufferNew( const char * p, size_t len);
+
+void bufferDropAnchor( tBuffer * buffer );
+const char * bufferGetAnchorString( tBuffer * buffer );
 
 unsigned char bufferGetChar( tBuffer * buffer );
 

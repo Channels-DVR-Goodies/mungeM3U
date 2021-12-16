@@ -12,17 +12,19 @@ mappings:
     ignoreCase = true
 
     # mark these characters as 'kNameSeparator'
-    Separator = " :|()[]"
+    Separator = " :|-"
 }
 
 # the strings to hash into the enum
 # if there is a comma, first string is for symbol, subsequent strings are to hash
 #
 keywords = [
-    "TV",
-    "Chan,Chan,Channel",
     "VIP",
-    "Plus1,+1",
-    "Live,Live,Event,Events",
-    "FrenchCanadian,French,FR,Quebec,Montreal"
+    "24x7,24x7,24/7,247",
+    "VideoOnDemand,VideoOnDemand,VOD,OnDemand",
+    "PayPerView,PayPerView,PPV",
+    "Plus1,+1,Plus1",
+    "LiveEvent,Live,Event,Events",
+    "FrenchCanadian,French,(French),FR,(FR),FR-CA,Quebec,Montreal",
+    "Latino,Latino,Latin,(ES)"
 ]

@@ -17,6 +17,27 @@ tBuffer * bufferNew( const char * p, size_t len )
     return result;
 }
 
+void bufferDropAnchor( tBuffer * buffer )
+{
+    buffer->anchor = buffer->pointer;
+}
+
+const char * bufferGetAnchorString( tBuffer * buffer )
+{
+    char * result = NULL;
+    size_t len = buffer->pointer - buffer->anchor;
+    if ( len > 0 )
+    {
+        result = malloc( len + 1 );
+        if ( result != NULL)
+        {
+            memcpy( result, buffer->anchor, len );
+            result[len] = '\0';
+        }
+    }
+    return (const char *)result;
+}
+
 unsigned char bufferGetChar( tBuffer * buffer )
 {
     unsigned char result = '\0';
@@ -42,7 +63,9 @@ const char * bufferGetQuotedString( tBuffer * buffer )
     const char * start = buffer->pointer;
 
     while ( buffer->remaining > 0
-        && *buffer->pointer != '\"' )
+        && *buffer->pointer != '\"'
+        && *buffer->pointer != '\n'
+        && *buffer->pointer != '\r' )
     {
         buffer->pointer++;
         buffer->remaining--;
@@ -50,9 +73,10 @@ const char * bufferGetQuotedString( tBuffer * buffer )
 
     unsigned int len = buffer->pointer - start;
 
-    /* skip over the trailing quote */
-    if ( buffer->remaining > 0
-     && *buffer->pointer == '\"' )
+    /* Skip over trailing quote(s) */
+    /* Sometimes entries in the M3U are malformed, and has two adjacent closing quotes */
+    while ( buffer->remaining > 0
+        && *buffer->pointer == '\"' )
     {
         buffer->pointer++;
         buffer->remaining--;
@@ -93,37 +117,41 @@ const char * bufferGetStringToEOL( tBuffer * buffer )
         buffer->remaining--;
     }
 
-    result = malloc( len + 1 );
-
-    if ( result != NULL)
+    result = NULL;
+    if ( len > 0 )
     {
-        memcpy( result, start, len );
-        /* always null-terminated */
-        result[len] = '\0';
+        result = malloc( len + 1 );
+
+        if ( result != NULL )
+        {
+            memcpy( result, start, len );
+            /* always null-terminated */
+            result[len] = '\0';
+        }
     }
     return (const char *)result;
 }
 
 void bufferPrintToEOL( FILE * output, tBuffer * buffer )
 {
-    const char * src = buffer->pointer;
-    char * dest;
-    char line[1024];
+    const char * end = buffer->pointer;
+    size_t left = buffer->remaining;
 
-    size_t remaining = buffer->remaining;
-    if ( remaining > sizeof(line) - 1 )
+    while ( *end != '\0'
+         && *end != '\n'
+         && *end != '\r'
+         && left > 0 )
     {
-        remaining = sizeof(line) - 1;
+        end++;
+        left--;
+    }
+    size_t len = end - buffer->pointer;
+    if (len > buffer->remaining)
+    {
+        len = buffer->remaining;
     }
 
-    dest = line;
-    while ( remaining > 0
-            && *src != '\n'
-            && *src != '\r' )
-    {
-        *dest++ = *src++;
-        remaining--;
-    }
-    *dest = '\0';
-    fprintf( output, "%s\n", line );
+    fputc( '\'', output );
+    fwrite( buffer->pointer, len, 1, output );
+    fputs( "\'\n", output );
 }

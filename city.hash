@@ -1,0 +1,46 @@
+//
+//
+
+prefix = "City"
+
+# the character mapping array
+# array starts out mapping one-to-one, i.e. input = output
+#
+mappings:
+{
+    # make the generated hashes case-insensitive
+    ignoreCase = true
+
+    # mark these characters as 'kCountrySeparator'
+    Separator = " -:|()[]"
+}
+
+# the strings to hash into the enum
+# if there is a comma, first string is for symbol, subsequent strings are to hash
+#
+keywords = [
+    "Anglia",
+    "Boston",
+    "Buffalo",
+    "Calgary",
+    "Cambridge",
+    "Charlottetown",
+    "Chicago",
+    "Denver",
+    "Edmonton",
+    "Fredericton",
+    "Granada",
+    "Halifax",
+    "London",
+    "Midlands",
+    "Montreal",
+    "Ottawa",
+    "Oxford",
+    "Paris",
+    "Regina",
+    "Toronto",
+    "Vancouver",
+    "Windsor",
+    "Winnipeg",
+    "Yorkshire"
+]
