@@ -22,19 +22,23 @@
 #include <btree/btree.h>
 
 #include <libhashstrings.h>
+
+/* generated from hash files */
+#include "capitalization.h"
+#include "city.h"
+#include "country.h"
+#include "genre.h"
 #include "keyword.h"
 #include "name.h"
-#include "country.h"
-#include "countryCodes.h"
-#include "genre.h"
-#include "resolution.h"
-#include "fccdata.h"
 #include "nielsenDMA.h"
-#include "languages.h"
+#include "resolution.h"
+#include "uscallsign.h"
 #include "usstate.h"
+
+/* normal local includes */
+#include "languages.h"
+#include "countryCodes.h"
 #include "usstationdata.h"
-#include "city.h"
-#include "capitalization.h"
 
 #define kHashExtMP4     0x003994c8
 #define kHashExtMKV     0x003993a4

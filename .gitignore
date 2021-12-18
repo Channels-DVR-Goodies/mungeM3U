@@ -55,8 +55,9 @@ dkms.conf
 .idea/
 cmake-build-*/
 affiliate.h
-country.h
+capitalization.h
 city.h
+country.h
 fccdata.h
 genre.h
 keyword.h
@@ -64,5 +65,5 @@ name.h
 nielsenDMA.h
 region.h
 resolution.h
+uscallsign.h
 usstate.h
-capitalization.h
