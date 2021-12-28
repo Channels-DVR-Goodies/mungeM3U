@@ -28,10 +28,11 @@ mappings:
 # if there is a comma, first string is for symbol, second is to hash
 #
 keywords = [
+    "EXTM3U,#EXTM3U",
+    "EXTINF,#EXTINF:-1",
     "XUI,xui-id",
     "ID,tvg-id",
     "Name,tvg-name",
     "Logo,tvg-logo",
-    "Group,group-title",
-    "URL,x-url"
+    "Group,group-title"
 ]

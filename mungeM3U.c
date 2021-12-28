@@ -97,7 +97,8 @@ typedef struct sStream {
 typedef struct sChannel {
     tCommon           common;
 
-    const char *      id;
+	const char *      xui;
+	const char *      id;
     const char *      logo;
 
     struct sStream *  stream;
@@ -124,9 +125,13 @@ struct {
     } head;
 } global;
 
+void dumpCommon(  FILE * output, tCommon  * common );
 void dumpChannel( FILE * output, tChannel * channel );
+void dumpGroup(   FILE * output, tGroup   * group );
+void dumpStreams( FILE * output, tStream  * stream );
 
-#undef DEBUG_REJECTION
+
+#define DEBUG_REJECTION
 
 /**
  * @brief Decide if a group should be included in the output M3U
@@ -154,59 +159,48 @@ bool isGroupDisabled( tGroup * group )
     case kGenreShopping:
     case kGenreSports:
         result = true;
-#ifdef DEBUG_REJECTION
-        fprintf( stderr, "   Genre ");
-        dumpChannel( stderr, channel );
-#endif
         break;
 
         /* the regional channels can bump up the channel count significantly.
          * since most methods of recording IPTV put a cap on the number of
          * channels that can be imported, removing redundant channels is worthwhile */
-    case kGenreRegional:
-        switch ( common->country )
-        {
-        case kCountryUnitedStates:
-            /* if we find a US Callsign, filter down to the SF Bay Area stations */
-            if ( common->usStation != kUSCallsignUnset )
-            {
-                result = ( USStationData[ common->usStation ].nielsenDMAIdx != kNielsenDMASFBayArea );
-            }
-            break;
+	case kGenreLocal:
+	case kGenreCountry:
+		switch ( common->country )
+		{
+		case kCountryUnitedStates:
+			/* if we find a US Callsign, filter down to the SF Bay Area stations */
+			if ( common->usStation != kUSCallsignUnset )
+			{
+			//	result = ( USStationData[ common->usStation ].stateIdx != kUSStateCalifornia );
+			}
+			break;
 
-        case kCountryCanada:
-            if ( common->city != kCityToronto && common->city != kCityVancouver )
-            {
-                result = true;
-            }
-            break;
+		case kCountryCanada:
+			if ( common->city != kCityToronto && common->city != kCityVancouver )
+			{
+			//	result = true;
+			}
+			break;
 
-        case kCountryUnitedKingdom:
-            /* nuke the multitude of regional channels in the UK */
-            if ( common->city != kCityLondon )
-            {
-                result = true;
-            }
-            break;
+		case kCountryUnitedKingdom:
+			/* nuke the multitude of regional channels in the UK */
+			if ( common->city != kCityLondon )
+			{
+			//	result = true;
+			}
+			break;
 
-        default:
-            result = true;
-            break;
-        }
-#ifdef DEBUG_REJECTION
-        if ( result == true )
-        {
-            fprintf( stderr, "Regional ");
-            dumpChannel( stderr, channel );
-        }
-#endif
-        break;
+		default:
+			result = true;
+			break;
+		}
+		break;
 
     case kGenreUnset:
     default:
         break;
     }
-
 
     /* trim down to just UK and Canadian channels */
     if ( ! result )
@@ -220,10 +214,6 @@ bool isGroupDisabled( tGroup * group )
 
         default:
             result = true;
-#ifdef DEBUG_REJECTION
-            fprintf( stderr, " Country ");
-            dumpChannel( stderr, channel );
-#endif
             break;
         }
     }
@@ -231,11 +221,15 @@ bool isGroupDisabled( tGroup * group )
     if ( ! result && (common->isPlus1 || common->type != kLinear ))
     {
         result = true;
-#ifdef DEBUG_REJECTION
-        fprintf( stderr, "    Live ");
-        dumpChannel( stderr, channel );
-#endif
     }
+
+	if ( result )
+	{
+#ifdef DEBUG_REJECTION
+		fprintf( stderr, "%10s ", lookupGenreAsString[ common->genre ] );
+		dumpGroup( stderr, group );
+#endif
+	}
 
     return result;
 }
@@ -261,7 +255,7 @@ bool isChannelDisabled( tChannel * channel )
     {
         result = true;
 #ifdef DEBUG_REJECTION
-        fprintf( stderr, "    File ");
+        fprintf( stderr, "      File ");
         dumpChannel( stderr, channel );
 #endif
     }
@@ -276,7 +270,7 @@ bool isChannelDisabled( tChannel * channel )
     case kGenreSports:
         result = true;
 #ifdef DEBUG_REJECTION
-        fprintf( stderr, "   Genre ");
+        fprintf( stderr, "     Genre ");
         dumpChannel( stderr, channel );
 #endif
         break;
@@ -284,14 +278,14 @@ bool isChannelDisabled( tChannel * channel )
         /* The regional channels can bump up the channel count significantly. Since
          * most methods of recording IPTV put a cap on the number of channels that
          * can be imported, removing redundant channels is worthwhile */
-    case kGenreRegional:
+    case kGenreLocal:
         switch ( channel->common.country )
         {
         case kCountryUnitedStates:
             /* if we find a US Callsign, filter down to the SF Bay Area stations */
             if ( common->usStation != kUSCallsignUnset )
             {
-                result = ( USStationData[ common->usStation ].nielsenDMAIdx != kNielsenDMASFBayArea );
+//                result = ( USStationData[ common->usStation ].nielsenDMAIdx != kNielsenDMASFBayArea );
             }
             break;
 
@@ -317,7 +311,7 @@ bool isChannelDisabled( tChannel * channel )
 #ifdef DEBUG_REJECTION
         if ( result == true )
         {
-            fprintf( stderr, "Regional ");
+            fprintf( stderr, "     Local ");
             dumpChannel( stderr, channel );
         }
 #endif
@@ -335,13 +329,14 @@ bool isChannelDisabled( tChannel * channel )
         {
         case kCountryUnset:
         case kCountryCanada:
-        case kCountryUnitedKingdom:
+		case kCountryUnitedKingdom:
+		case kCountryUnitedStates:
             break;
 
         default:
             result = true;
 #ifdef DEBUG_REJECTION
-            fprintf( stderr, " Country ");
+            fprintf( stderr, "   Country ");
             dumpChannel( stderr, channel );
 #endif
             break;
@@ -355,7 +350,7 @@ bool isChannelDisabled( tChannel * channel )
         {
             result = true;
 #ifdef DEBUG_REJECTION
-            fprintf( stderr, "Language ");
+            fprintf( stderr, "  Language ");
             dumpChannel( stderr, channel );
 #endif
         }
@@ -365,7 +360,7 @@ bool isChannelDisabled( tChannel * channel )
     {
         result = true;
 #ifdef DEBUG_REJECTION
-        fprintf( stderr, "    Live ");
+        fprintf( stderr, "      Live ");
         dumpChannel( stderr, channel );
 #endif
     }
@@ -448,6 +443,18 @@ void trimTrailingEOL( char * p )
     p[1] = '\0';
 }
 
+void trimAppendQuote( char * p )
+{
+	char * start = p;
+	/* find the end of the string */
+	while ( *p != '\0' ) { ++p; }
+	/* back up before the nul */
+	--p;
+	/* reverse over any trailing newlines/carriage returns */
+	while ( start < p && ( *p == '\n' || *p == '\r' ) ) { --p; }
+	p[1] = '\"';
+	p[2] = '\0';
+}
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 /* in hindsight, I probably should have used C++ instead... */
@@ -731,14 +738,14 @@ bool processCommonHash( tHash hash, tCommon * common )
         if ( common->usStation != kUSCallsignUnset )
         {
             common->country   = kCountryUnitedStates;
-            common->genre     = kGenreRegional;
+            common->genre     = kGenreLocal;
             common->affiliate = USStationData[ common->usStation ].affiliateIdx;
         }
     }
 
     if ( common->genre == kGenreUnset && assignHash( mapCitySearch, hash, &common->city ) )
     {
-        common->genre = kGenreRegional;
+        common->genre = kGenreLocal;
     }
 
     /* if a US Station callsign was already found, then genre has already been set to 'regional' */
@@ -1045,10 +1052,10 @@ tChannel * processChannelName( const char * name, tGroup * group )
             {
                 if  ( btree_oom( global.tree.channel ) )
                 {
-                    fprintf( stderr, "channel btree_set() failed - out of memory\n" );
+//                    fprintf( stderr, "channel btree_set() failed - out of memory\n" );
                 }
                 else {
-                    // fprintf( stderr, "new channel added: %s\n", channel->common.name );
+//                    fprintf( stderr, "new channel added: %s\n", channel->common.name );
                 }
             }
             else
@@ -1062,7 +1069,7 @@ tChannel * processChannelName( const char * name, tGroup * group )
             freeChannel( channel );
             /* and switch to the existing one */
             channel = *chan;
-            // fprintf( stderr, "existing channel: %s\n", channel->common.name );
+//            fprintf( stderr, "existing channel: %s\n", channel->common.name );
         }
     }
 
@@ -1091,7 +1098,7 @@ tGroup * processGroupName( const char * name )
             freeGroup( group );
             /* and switch to the existing one */
             group = *grp;
-            // fprintf( stderr, "group exists: %s\n", group->common.name );
+//            fprintf( stderr, "group exists: %s\n", group->common.name );
         }
         else
         {
@@ -1103,7 +1110,7 @@ tGroup * processGroupName( const char * name )
                     fprintf( stderr, "group btree_set() failed - out of memory\n" );
                 }
                 else {
-                    // fprintf( stderr, "new group added: %s\n", group->common.name );
+//                    fprintf( stderr, "new group added: %s\n", group->common.name );
                 }
             }
             else
@@ -1122,201 +1129,205 @@ tGroup * processGroupName( const char * name )
  * @param inputFile
  * @return
  */
-bool importM3Uentry( FILE * inputFile )
+void importM3Uentry( const char * p )
 {
-    bool isExtInf = false;
+	const char * valueStart;
+	char * value;
 
-    static char buffer[32768];
-    const char * valueStart;
-    char * value;
+	const char * xui_id 	 = NULL;
+	const char * tvg_id 	 = NULL;
+	const char * tvg_name 	 = NULL;
+	const char * tvg_logo 	 = NULL;
+	const char * group_title = NULL;
+	const char * url 		 = NULL;
 
-    const char *  tvg_id       = NULL;
-    const char *  tvg_name     = NULL;
-    const char *  tvg_logo     = NULL;
-    const char *  group_title  = NULL;
-    const char *  url          = NULL;
+	tGroup   * group   = NULL;
+	tChannel * channel = NULL;
+	tStream  * stream  = NULL;
 
-    tGroup *      group        = NULL;
-    tChannel *    channel      = NULL;
-    tStream *     stream       = NULL;
+	tHash hash = 0;
+	for ( ; *p != '\0'; ++p )
+	{
+		tMappedChar w = remapChar( gKeywordCharMap, *p );
+		switch ( w )
+		{
+		case kKeywordSeparator:
+			hash = 0;
+			break;
 
-    bool lineRestart;
+		case kKeywordAssign:
+			++p; /* skip over the equals sign */
+			/* skip over the leading double-quote */
+			if ( *p == '"' )
+			{ ++p; }
+			valueStart = p;
 
-    do {
-        lineRestart = false;
-        char * p = fgets( buffer, sizeof( buffer ), inputFile );
-        if ( p == NULL )
-        {
-            /* read failed */
-            switch ( errno )
-            {
-            case 0: /* normal end-of-file */
-                break;
+			/* fast-forward to either next tag, or end-of-string */
+			while ( *p != '=' && *p != '\0' )
+			{ ++p; }
 
-            default: /* abnormal end-of-file */
-                fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
-                break;
-            }
-            /* bail. entry is still NULL, will let the caller know */
-        }
-        else
-        {
-            trimTrailingEOL( p );
-            // fprintf( stderr, "line: %s\n", p );
+			if ( *p == '=')
+			{
+				/* back up to the separator before the tag name */
+				while ( p > valueStart && *p != ' ' )
+				{ --p; }
+			}
+			/* back up over the trailing double-quote */
+			while ( p > valueStart && *p != '"' )
+			{ --p; }
+			value = strndup( valueStart, p - valueStart );
 
-            tHash hash = 0;
-            do
-            {
-                tMappedChar w = remapChar( gKeywordCharMap, *p );
-                switch ( w )
-                {
-                case '\0':
-                case kKeywordSeparator:
-                    switch ( findHash( mapKeywordSearch, hash ))
-                    {
-                    case kKeywordEXTM3U:
-                        lineRestart = true;
-                        break;
+			/* convert any double-quotes embedded in the string to single-quotes.
+			 * Yep, I've actually seen this in the wild, even though that's clearly invalid. */
+			for ( char * q = value; *q != '\0'; q++ )
+			{
+				if ( *q == '"' )
+				{ *q = '\''; }
+			}
 
-                    case kKeywordEXTINF:
-                        isExtInf = true;
-                        break;
+			// fprintf( stderr, "value: %s\n", value );
+			switch ( findHash( mapKeywordSearch, hash ))
+			{
+			case kKeywordXUI:
+				xui_id = value;
+//				fprintf( stderr, "xui_id: \'%s\'\n", xui_id );
+				break;
 
-                    default:
-                        break;
-                    }
-                    hash = 0;
-                    break;
+			case kKeywordID:
+				tvg_id = value;
+//				fprintf( stderr, "tvg_id: \'%s\'\n", tvg_id );
+				break;
 
-                case kKeywordAssign:
-                    if ( isExtInf )
-                    {
-                        ++p; /* skip past the equals sign */
-                        /* skip over the leading double-quote */
-                        if ( *p == '"' ) { ++p; }
-                        valueStart = p;
+			case kKeywordName:
+				tvg_name = seperatePlus1((char *)value );
+//				fprintf( stderr, "tvg_name: \'%s\'\n", tvg_name );
+				break;
 
-                        /* fast-forward to either next tag, or end-of-string */
-                        while ( *p != '=' && *p != '\0' ) { ++p; }
-                        /* if we found a tag... */
-                        if ( *p == '=' )
-                        {
-                            /* back up to the separator before the tag name */
-                            while ( p > valueStart && *p != ' ' ) { --p; }
-                        }
-                        else if ( *p == '\0' ) /* if we reached the string terminator */
-                        {
-                            /* back up to the comma after the group name */
-                            while ( p > valueStart && *p != ',' ) { --p; }
-                        }
-                        /* back up over the trailing double-quote */
-                        while ( p > valueStart && *p != '"' ) { --p; }
-                        value = strndup( valueStart, p - valueStart );
+			case kKeywordLogo:
+				tvg_logo = value;
+//				fprintf( stderr, "tvg_logo: \'%s\'\n", tvg_logo );
+				break;
 
-                        /* convert any double-quotes embedded in the string to single-quotes.
-                         * Yep, I've actually seen this in the wild, even though that's clearly invalid. */
-                        for ( char * q = value; *q != '\0'; q++ )
-                        {
-                            if ( *q == '"' ) *q = '\'';
-                        }
+			case kKeywordGroup:
+				group_title = value;
+//				fprintf( stderr, "group_title: \'%s\'\n", group_title );
+				break;
 
-                        // fprintf( stderr, "value: %s\n", value );
-                        switch ( findHash( mapKeywordSearch, hash ) )
-                        {
-                        case kKeywordID:
-                            tvg_id = value;
-                            break;
+			case kKeywordURL:
+				url = value;
+//				fprintf( stderr, "url: \'%s\'\n", url );
+				break;
 
-                        case kKeywordName:
-                            tvg_name = seperatePlus1((char *)value );
-                            break;
+			default:
+				fprintf( stderr, "Warning: unknown field\n" );
+				break;
+			}
+			// fprintf( stderr, "%12s = (%s)\n", lookupKeywordAsString[ keyword ], value );
 
-                        case kKeywordLogo:
-                            tvg_logo = value;
-                            break;
+			hash = 0;
+			break;
 
-                        case kKeywordGroup:
-                            group_title = value;
+		default:
+			hash = hashChar( hash, w );
+			break;
+		}
+	}
 
-                            char * line2 = fgets( buffer, sizeof( buffer ), inputFile );
-                            if ( line2 == NULL)
-                            {
-                                fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
-                            }
-                            else
-                            {
-                                trimTrailingEOL( line2 );
-                                // fprintf( stderr, " url: %s\n", line2 );
-                                url = strdup( line2 );
-                            }
-                            break;
-
-                        default:
-                            break;
-                        }
-                    }
-                    // fprintf( stderr, "%12s = (%s)\n", lookupKeywordAsString[ keyword ], value );
-
-                    hash = 0;
-                    break;
-
-                default:
-                    hash = hashChar( hash, w );
-                    break;
-                }
-            } while ( *p++ != '\0' && ! lineRestart );
-        }
-    } while ( lineRestart );
-
-    if ( isExtInf )
-    {
-        if ( group_title != NULL )
-        {
-            group = processGroupName( group_title );
-        }
-        if ( tvg_name != NULL )
-        {
-            channel = processChannelName( tvg_name, group );
-            if ( channel != NULL )
-            {
-                channel->logo = tvg_logo;
-                channel->id   = tvg_id;
-            }
-        }
-        if ( url != NULL )
-        {
-            stream = processStream( url, channel );
-            /* insertion sort keeps higher resolution streams earlier in the list */
-            tStream * strm;
-            tStream ** prev = &channel->stream;
-            for ( strm = channel->stream; strm != NULL; strm = strm->next )
-            {
-                if ( stream->resolution > strm->resolution )
-                {
-                    stream->next = strm;
-                    break;
-                }
-                prev = &strm->next;
-            }
-            *prev = stream;
-        }
-        group->common.disabled   = isGroupDisabled( group );
-        channel->common.disabled = isChannelDisabled( channel );
-    }
-
-    return isExtInf;
+	/* post-process the fields, now that we have collected them all */
+	if ( group_title != NULL)
+	{
+		group = processGroupName( group_title );
+	}
+	if ( tvg_name != NULL)
+	{
+		channel = processChannelName( tvg_name, group );
+		if ( channel != NULL)
+		{
+			channel->xui  = xui_id;
+			channel->id   = tvg_id;
+			channel->logo = tvg_logo;
+			if ( group != NULL )
+			{
+				channel->group = group;
+			}
+		}
+	}
+	if ( channel != NULL && url != NULL)
+	{
+		stream = processStream( url, channel );
+		/* insertion sort keeps higher resolution streams earlier in the list */
+		tStream  * strm;
+		tStream ** prev = &channel->stream;
+		for ( strm = channel->stream; strm != NULL; strm = strm->next )
+		{
+			if ( stream->resolution > strm->resolution )
+			{
+				stream->next = strm;
+				break;
+			}
+			prev = &strm->next;
+		}
+		*prev = stream;
+	}
+	if ( group != NULL )
+	{
+		group->common.disabled = isGroupDisabled( group );
+	}
+	if ( channel != NULL )
+	{
+		channel->common.disabled = isChannelDisabled( channel );
+	}
 }
 
 /**
  * @brief parse the M3U file into a linked list of tEntry structures
  * @param inputFile
  */
-void importM3U( FILE * inputFile )
+int importM3U( FILE * inputFile )
 {
-    while ( importM3Uentry( inputFile ) )
+	int result = 0;
+	static char buffer[32768];
+	char * p;
+
+    while ( (p = fgets( buffer, sizeof( buffer ), inputFile )) != NULL && result == 0 )
     {
-        /* spin */
-    }
+		trimTrailingEOL( p );
+		if ( strncmp( p, "#EXTINF:-1 ", 11 ) == 0 )
+		{
+			/* skip over the leading '#EXTINF:-1 ` */
+			p += 11;
+			char * q = strrchr( p, ',' );
+			if (q != NULL && *(q-1) == '"' )
+			{
+				*q = '\0';
+			}
+
+			strncat( buffer, " x-url=\"", sizeof( buffer ) - 1 );
+
+			int    l = strlen(p);
+
+			char * url = fgets( &p[l], sizeof( buffer ) - l, inputFile );
+			if ( url != NULL)
+			{
+				trimAppendQuote( &p[ l ] );
+				importM3Uentry( p );
+			} else
+			{
+				result = errno;
+				fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
+			}
+		}
+		fprintf( stderr, "line: %s\n", p );
+	}
+
+	/* fgets failed, see if there was an error */
+	if ( errno != 0 )
+	{
+		result = errno;
+		fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
+	}
+
+	return result;
 }
 
 /**
@@ -1350,8 +1361,9 @@ void exportChannel( FILE * output, tChannel * channel )
         snprintf( resolution, sizeof(resolution), " [%s]", lookupResolutionAsString[ channel->common.resolution ] );
     }
 
-    fprintf( output, "#EXTINF:-1 tvg-id=\"%s\" tvg-name=\"%s%s\" tvg-logo=\"%s\" group-title=\"%s\",%s%s\n%s\n",
-             channel->id,
+    fprintf( output, "#EXTINF:-1 xui_id=\"%s\" tvg-id=\"%s\" tvg-name=\"%s%s\" tvg-logo=\"%s\" group-title=\"%s\",%s%s\n%s\n",
+			 channel->xui,
+			 channel->id,
              channel->common.name, resolution,
              channel->logo,
              channel->group->common.name,
