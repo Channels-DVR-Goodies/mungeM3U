@@ -131,7 +131,7 @@ void dumpGroup(   FILE * output, tGroup   * group );
 void dumpStreams( FILE * output, tStream  * stream );
 
 
-#define DEBUG_REJECTION
+#undef DEBUG_REJECTION
 
 /**
  * @brief Decide if a group should be included in the output M3U
@@ -1131,6 +1131,7 @@ tGroup * processGroupName( const char * name )
  */
 void importM3Uentry( const char * p )
 {
+	const char * keyStart;
 	const char * valueStart;
 	char * value;
 
@@ -1145,6 +1146,7 @@ void importM3Uentry( const char * p )
 	tChannel * channel = NULL;
 	tStream  * stream  = NULL;
 
+	keyStart = p;
 	tHash hash = 0;
 	for ( ; *p != '\0'; ++p )
 	{
@@ -1152,6 +1154,7 @@ void importM3Uentry( const char * p )
 		switch ( w )
 		{
 		case kKeywordSeparator:
+			keyStart = p;
 			hash = 0;
 			break;
 
@@ -1219,11 +1222,11 @@ void importM3Uentry( const char * p )
 				break;
 
 			default:
-				fprintf( stderr, "Warning: unknown field\n" );
+				fprintf( stderr, "Warning: unknown field \'%*s\'\n", (int)(p - keyStart), keyStart );
 				break;
 			}
 			// fprintf( stderr, "%12s = (%s)\n", lookupKeywordAsString[ keyword ], value );
-
+			keyStart = p;
 			hash = 0;
 			break;
 
@@ -1317,7 +1320,7 @@ int importM3U( FILE * inputFile )
 				fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
 			}
 		}
-		fprintf( stderr, "line: %s\n", p );
+		// fprintf( stderr, "line: %s\n", p );
 	}
 
 	/* fgets failed, see if there was an error */
