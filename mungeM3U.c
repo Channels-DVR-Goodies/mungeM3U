@@ -45,6 +45,7 @@
 #define kHashExtAVI     0x003ddd89
 #define kHashExtFLV     0x0039bac6
 #define kHashExtM3U8    0x0983bd2a
+#define kHashExtTS      0x00015073
 #define kHashPeriod     0x0000002e
 
 
@@ -85,6 +86,11 @@ const char * lookupTypeAsString[] =
      [kLive]   = "Live Event"
 };
 
+typedef struct sTMSChannel {
+    const char * name;
+    long id;
+} tTMSChannel;
+
 typedef struct sStream {
     struct sStream *  next;
     const char     *  url;
@@ -97,8 +103,8 @@ typedef struct sStream {
 typedef struct sChannel {
     tCommon           common;
 
-	const char *      xui;
-	const char *      id;
+    const char *      xui;
+    const char *      id;
     const char *      logo;
 
     struct sStream *  stream;
@@ -117,6 +123,7 @@ struct {
     struct {
         struct btree * channel;
         struct btree * group;
+        struct btree * mapping;
     } tree;
     struct {
         tChannel *     channel;
@@ -164,38 +171,38 @@ bool isGroupDisabled( tGroup * group )
         /* the regional channels can bump up the channel count significantly.
          * since most methods of recording IPTV put a cap on the number of
          * channels that can be imported, removing redundant channels is worthwhile */
-	case kGenreLocal:
-	case kGenreCountry:
-		switch ( common->country )
-		{
-		case kCountryUnitedStates:
-			/* if we find a US Callsign, filter down to the SF Bay Area stations */
-			if ( common->usStation != kUSCallsignUnset )
-			{
-			//	result = ( USStationData[ common->usStation ].stateIdx != kUSStateCalifornia );
-			}
-			break;
+    case kGenreLocal:
+    case kGenreCountry:
+        switch ( common->country )
+        {
+        case kCountryUnitedStates:
+            /* if we find a US Callsign, filter down to the SF Bay Area stations */
+            if ( common->usStation != kUSCallsignUnset )
+            {
+            //	result = ( USStationData[ common->usStation ].stateIdx != kUSStateCalifornia );
+            }
+            break;
 
-		case kCountryCanada:
-			if ( common->city != kCityToronto && common->city != kCityVancouver )
-			{
-			//	result = true;
-			}
-			break;
+        case kCountryCanada:
+            if ( common->city != kCityToronto && common->city != kCityVancouver )
+            {
+            //	result = true;
+            }
+            break;
 
-		case kCountryUnitedKingdom:
-			/* nuke the multitude of regional channels in the UK */
-			if ( common->city != kCityLondon )
-			{
-			//	result = true;
-			}
-			break;
+        case kCountryUnitedKingdom:
+            /* nuke the multitude of regional channels in the UK */
+            if ( common->city != kCityLondon )
+            {
+            //	result = true;
+            }
+            break;
 
-		default:
-			result = true;
-			break;
-		}
-		break;
+        default:
+            result = true;
+            break;
+        }
+        break;
 
     case kGenreUnset:
     default:
@@ -223,13 +230,13 @@ bool isGroupDisabled( tGroup * group )
         result = true;
     }
 
-	if ( result )
-	{
+    if ( result )
+    {
 #ifdef DEBUG_REJECTION
-		fprintf( stderr, "%10s ", lookupGenreAsString[ common->genre ] );
-		dumpGroup( stderr, group );
+        fprintf( stderr, "%10s ", lookupGenreAsString[ common->genre ] );
+        dumpGroup( stderr, group );
 #endif
-	}
+    }
 
     return result;
 }
@@ -329,8 +336,8 @@ bool isChannelDisabled( tChannel * channel )
         {
         case kCountryUnset:
         case kCountryCanada:
-		case kCountryUnitedKingdom:
-		case kCountryUnitedStates:
+        case kCountryUnitedKingdom:
+        case kCountryUnitedStates:
             break;
 
         default:
@@ -445,15 +452,15 @@ void trimTrailingEOL( char * p )
 
 void trimAppendQuote( char * p )
 {
-	char * start = p;
-	/* find the end of the string */
-	while ( *p != '\0' ) { ++p; }
-	/* back up before the nul */
-	--p;
-	/* reverse over any trailing newlines/carriage returns */
-	while ( start < p && ( *p == '\n' || *p == '\r' ) ) { --p; }
-	p[1] = '\"';
-	p[2] = '\0';
+    char * start = p;
+    /* find the end of the string */
+    while ( *p != '\0' ) { ++p; }
+    /* back up before the nul */
+    --p;
+    /* reverse over any trailing newlines/carriage returns */
+    while ( start < p && ( *p == '\n' || *p == '\r' ) ) { --p; }
+    p[1] = '\"';
+    p[2] = '\0';
 }
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -880,6 +887,7 @@ tStream * processStream( const char * url, tChannel * channel )
                     stream->isFile = true;
                     break;
 
+                case kHashExtTS:  /* streams may have a .ts extension */
                 case kHashPeriod: /* some URLs have trailing periods? */
                     break;
 
@@ -915,13 +923,14 @@ void processName( const char * name, tCommon * common )
     /* first extract any attributes embedded in the channel name,
      * tags like 'VIP', 'UK', 'HD', etc. See name.hash */
 
-    common->originalName = strdup( name );
-    p = name;
-    if ( p == NULL || strlen(p) == 0 )
+    if ( name == NULL || strlen(name) == 0 )
     {
         common->name = strdup( "(none)" );
         return;
     }
+
+    p = name;
+    common->originalName = strdup( p );
 
     sp = temp;
     dp = sp;
@@ -1024,6 +1033,14 @@ void processName( const char * name, tCommon * common )
             }
         }
     }
+
+    if ( common->resolution != kResolutionUnset )
+    {
+        int len = strlen( temp );
+        snprintf( &temp[ len ], sizeof( temp ) - len, " [%s]",
+                  lookupResolutionAsString[ common->resolution ] );
+    }
+
     common->name = strdup( temp );
 }
 
@@ -1123,6 +1140,31 @@ tGroup * processGroupName( const char * name )
     return group;
 }
 
+/**
+ * @brief convert tvg_id into a legal identifier
+ * @param tvg_id
+ * @return
+ */
+char * tvgidToIdentifier( const char * tvg_id )
+{
+    char * identifier = strdup( tvg_id );
+
+    if ( identifier != NULL )
+    {
+        for ( char * p = identifier; *p != '\0'; ++p )
+        {
+            if ( !isalnum( *p ) )
+            {
+                *p = '_';
+            }
+        }
+    }
+
+    return identifier;
+}
+
+
+#undef DEBUG_FIELDS
 
 /**
  * @brief
@@ -1131,155 +1173,149 @@ tGroup * processGroupName( const char * name )
  */
 void importM3Uentry( const char * p )
 {
-	const char * keyStart;
-	const char * valueStart;
-	char * value;
+    const char * xui_id 	 = NULL;
+    const char * tvg_id 	 = NULL;
+    const char * tvg_name 	 = NULL;
+    const char * tvg_logo 	 = NULL;
+    const char * group_title = NULL;
+    const char * url 		 = NULL;
 
-	const char * xui_id 	 = NULL;
-	const char * tvg_id 	 = NULL;
-	const char * tvg_name 	 = NULL;
-	const char * tvg_logo 	 = NULL;
-	const char * group_title = NULL;
-	const char * url 		 = NULL;
+    tGroup   * group   = NULL;
+    tChannel * channel = NULL;
+    tStream  * stream  = NULL;
 
-	tGroup   * group   = NULL;
-	tChannel * channel = NULL;
-	tStream  * stream  = NULL;
+    const char * keyStart = p;
+    tHash hash = 0;
+    const char * valueStart;
 
-	keyStart = p;
-	tHash hash = 0;
-	for ( ; *p != '\0'; ++p )
-	{
-		tMappedChar w = remapChar( gKeywordCharMap, *p );
-		switch ( w )
-		{
-		case kKeywordSeparator:
-			keyStart = p;
-			hash = 0;
-			break;
+    for ( ; *p != '\0'; ++p )
+    {
+        tMappedChar w = remapChar( gKeywordCharMap, *p );
+        switch ( w )
+        {
+        default:
+            hash = hashChar( hash, w );
+            break;
 
-		case kKeywordAssign:
-			++p; /* skip over the equals sign */
-			/* skip over the leading double-quote */
-			if ( *p == '"' )
-			{ ++p; }
-			valueStart = p;
+        case kKeywordSeparator:
+            keyStart = p + 1;
+            hash = 0;
+            break;
 
-			/* fast-forward to either next tag, or end-of-string */
-			while ( *p != '=' && *p != '\0' )
-			{ ++p; }
+        case kKeywordAssign:
+            {
+                char * key = strndup( keyStart, p - keyStart );
 
-			if ( *p == '=')
-			{
-				/* back up to the separator before the tag name */
-				while ( p > valueStart && *p != ' ' )
-				{ --p; }
-			}
-			/* back up over the trailing double-quote */
-			while ( p > valueStart && *p != '"' )
-			{ --p; }
-			value = strndup( valueStart, p - valueStart );
+                ++p; /* skip over the equals sign */
+                if ( *p == '"' )
+                {
+                    /* skip over the leading double-quote */
+                    ++p;
+                    valueStart = p;
 
-			/* convert any double-quotes embedded in the string to single-quotes.
-			 * Yep, I've actually seen this in the wild, even though that's clearly invalid. */
-			for ( char * q = value; *q != '\0'; q++ )
-			{
-				if ( *q == '"' )
-				{ *q = '\''; }
-			}
+                    /* fast-forward to trailing quote (or for safety, end-of-string) */
+                    while ( *p != '"' && *p != '\0' )
+                    {
+                        /* skip over any quoted character */
+                        if ( *p == '\\' ) { ++p; }
+                        ++p;
+                    }
+                }
+                else
+                {
+                    /* value not quoted, so fast-forward to the first space */
+                    valueStart = p;
+                    while ( *p != ' ' && *p != '\0' ) { ++p; }
+                }
 
-			// fprintf( stderr, "value: %s\n", value );
-			switch ( findHash( mapKeywordSearch, hash ))
-			{
-			case kKeywordXUI:
-				xui_id = value;
-//				fprintf( stderr, "xui_id: \'%s\'\n", xui_id );
-				break;
+                char * value = strndup( valueStart, p - valueStart );
 
-			case kKeywordID:
-				tvg_id = value;
-//				fprintf( stderr, "tvg_id: \'%s\'\n", tvg_id );
-				break;
+#ifdef DEBUG_FIELDS
+                fprintf( stderr, "key: \'%s\', value: \'%s\'\n", key, value );
+#endif
+                switch ( findHash( mapKeywordSearch, hash ))
+                {
+                case kKeywordXUI:    xui_id = value;       break;
+                case kKeywordID:     tvg_id = value;       break;
+                case kKeywordName:   tvg_name = seperatePlus1((char *)value );  break;
+                case kKeywordLogo:   tvg_logo = value;     break;
+                case kKeywordGroup:  group_title = value;  break;
+                case kKeywordURL:    url = value;          break;
 
-			case kKeywordName:
-				tvg_name = seperatePlus1((char *)value );
-//				fprintf( stderr, "tvg_name: \'%s\'\n", tvg_name );
-				break;
+                default:
+                    fprintf( stderr, "Warning: unknown field \'%s\'\n", key );
+                    break;
+                }
 
-			case kKeywordLogo:
-				tvg_logo = value;
-//				fprintf( stderr, "tvg_logo: \'%s\'\n", tvg_logo );
-				break;
+                free( key );
+                keyStart = p;
+                hash = 0;
+                break;
 
-			case kKeywordGroup:
-				group_title = value;
-//				fprintf( stderr, "group_title: \'%s\'\n", group_title );
-				break;
+            }
+        }
+    }
 
-			case kKeywordURL:
-				url = value;
-//				fprintf( stderr, "url: \'%s\'\n", url );
-				break;
+    /* post-process the fields, now that we have collected them all */
+    if ( group_title != NULL)
+    {
+        group = processGroupName( group_title );
+    }
+    if ( tvg_name != NULL)
+    {
+        channel = processChannelName( tvg_name, group );
+        if ( channel != NULL)
+        {
+            channel->xui  = xui_id;
+            channel->id   = tvg_id;
+            channel->logo = tvg_logo;
+            if ( group != NULL )
+            {
+                channel->group = group;
+            }
+        }
+    }
+    if ( channel != NULL && url != NULL)
+    {
+        stream = processStream( url, channel );
+        /* insertion sort keeps higher resolution streams earlier in the list */
+        tStream  * strm;
+        tStream ** prev = &channel->stream;
+        for ( strm = channel->stream; strm != NULL; strm = strm->next )
+        {
+            if ( stream->resolution > strm->resolution )
+            {
+                stream->next = strm;
+                break;
+            }
+            prev = &strm->next;
+        }
+        *prev = stream;
+    }
 
-			default:
-				fprintf( stderr, "Warning: unknown field \'%*s\'\n", (int)(p - keyStart), keyStart );
-				break;
-			}
-			// fprintf( stderr, "%12s = (%s)\n", lookupKeywordAsString[ keyword ], value );
-			keyStart = p;
-			hash = 0;
-			break;
+#if 0
+    if ( tvg_id != NULL && strlen( tvg_id ) > 0 )
+    {
+        char * id_tvg = tvgidToIdentifier(tvg_id);
+        if ( id_tvg != NULL )
+        {
+            fprintf( stderr, "    \"%s,%s\", %*c /* %s */\n",
+                     id_tvg, tvg_id,
+                     (int)(60 - 2 * strlen(tvg_id)), ' ',
+                     channel->common.name );
+            free( id_tvg );
+        }
+    }
+#endif
 
-		default:
-			hash = hashChar( hash, w );
-			break;
-		}
-	}
-
-	/* post-process the fields, now that we have collected them all */
-	if ( group_title != NULL)
-	{
-		group = processGroupName( group_title );
-	}
-	if ( tvg_name != NULL)
-	{
-		channel = processChannelName( tvg_name, group );
-		if ( channel != NULL)
-		{
-			channel->xui  = xui_id;
-			channel->id   = tvg_id;
-			channel->logo = tvg_logo;
-			if ( group != NULL )
-			{
-				channel->group = group;
-			}
-		}
-	}
-	if ( channel != NULL && url != NULL)
-	{
-		stream = processStream( url, channel );
-		/* insertion sort keeps higher resolution streams earlier in the list */
-		tStream  * strm;
-		tStream ** prev = &channel->stream;
-		for ( strm = channel->stream; strm != NULL; strm = strm->next )
-		{
-			if ( stream->resolution > strm->resolution )
-			{
-				stream->next = strm;
-				break;
-			}
-			prev = &strm->next;
-		}
-		*prev = stream;
-	}
-	if ( group != NULL )
-	{
-		group->common.disabled = isGroupDisabled( group );
-	}
-	if ( channel != NULL )
-	{
-		channel->common.disabled = isChannelDisabled( channel );
-	}
+    if ( group != NULL )
+    {
+        group->common.disabled = isGroupDisabled( group );
+    }
+    if ( channel != NULL )
+    {
+        channel->common.disabled = isChannelDisabled( channel );
+    }
 }
 
 /**
@@ -1288,49 +1324,62 @@ void importM3Uentry( const char * p )
  */
 int importM3U( FILE * inputFile )
 {
-	int result = 0;
-	static char buffer[32768];
-	char * p;
+    int result = 0;
+    static char buffer[32768];
+    char * p;
 
     while ( (p = fgets( buffer, sizeof( buffer ), inputFile )) != NULL && result == 0 )
     {
-		trimTrailingEOL( p );
-		if ( strncmp( p, "#EXTINF:-1 ", 11 ) == 0 )
-		{
-			/* skip over the leading '#EXTINF:-1 ` */
-			p += 11;
-			char * q = strrchr( p, ',' );
-			if (q != NULL && *(q-1) == '"' )
-			{
-				*q = '\0';
-			}
+        trimTrailingEOL( p );
+        if ( strncmp( p, "#EXTINF:-1 ", 11 ) == 0 )
+        {
+            /* skip over the leading '#EXTINF:-1 ` */
+            p += 11;
+            char * q = strrchr( p, ',' );
+            if (q != NULL && *(q-1) == '"' )
+            {
+                *q = '\0';
+            }
 
-			strncat( buffer, " x-url=\"", sizeof( buffer ) - 1 );
+            strncat( buffer, " x-url=\"", sizeof( buffer ) - 1 );
 
-			int    l = strlen(p);
+            int    l = strlen(p);
 
-			char * url = fgets( &p[l], sizeof( buffer ) - l, inputFile );
-			if ( url != NULL)
-			{
-				trimAppendQuote( &p[ l ] );
-				importM3Uentry( p );
-			} else
-			{
-				result = errno;
-				fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
-			}
-		}
-		// fprintf( stderr, "line: %s\n", p );
-	}
+            char * url = fgets( &p[l], sizeof( buffer ) - l, inputFile );
+            if ( url != NULL)
+            {
+                trimAppendQuote( &p[ l ] );
+                importM3Uentry( p );
+            } else
+            {
+                result = errno;
+                fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
+            }
+        }
+        // fprintf( stderr, "line: %s\n", p );
+    }
 
-	/* fgets failed, see if there was an error */
-	if ( errno != 0 )
-	{
-		result = errno;
-		fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
-	}
+    /* fgets failed, see if there was an error */
+    if ( errno != 0 )
+    {
+        result = errno;
+        fprintf( stderr, "### read failure (%d: %s)\n", errno, strerror(errno));
+    }
 
-	return result;
+    return result;
+}
+
+long findTMSID( const char * name )
+{
+    long result = 0;
+    tTMSChannel tmschan;
+    tmschan.name = name;
+    tTMSChannel * found  = (tTMSChannel *)btree_get( global.tree.mapping, &tmschan );
+
+    if ( found != NULL)
+        result = found->id;
+
+    return result;
 }
 
 /**
@@ -1345,33 +1394,23 @@ void exportChannel( FILE * output, tChannel * channel )
     dumpChannel( output, channel );
     dumpStreams( output, channel->stream );
 #else
+    fprintf( output, "#EXTINF:-1");
 
-#if 0
-    char    country[20];
-
-    country[0] = '\0';
-    if ( channel->common.country != kCountryUnset )
-    {
-        snprintf( country, sizeof(country), " (%s)", lookupCountryAsString[ channel->common.country ] );
+    if (channel->xui != NULL) {
+        fprintf( output, " xui_id=\"%s\"", channel->xui);
     }
-#endif
-
-    char resolution[20];
-
-    resolution[0] = '\0';
-    if ( channel->common.resolution != kResolutionUnset )
+    long tmsid = findTMSID( channel->common.name );
+    if ( tmsid != 0 )
     {
-        snprintf( resolution, sizeof(resolution), " [%s]", lookupResolutionAsString[ channel->common.resolution ] );
+        fprintf( output, " tvc-guide-stationid=%ld", tmsid );
     }
 
-    fprintf( output, "#EXTINF:-1 xui_id=\"%s\" tvg-id=\"%s\" tvg-name=\"%s%s\" tvg-logo=\"%s\" group-title=\"%s\",%s%s\n%s\n",
-			 channel->xui,
-			 channel->id,
-             channel->common.name, resolution,
-             channel->logo,
-             channel->group->common.name,
-             channel->common.name, resolution,
-             channel->stream->url );
+    fprintf( output, " tvg-id=\"%s\" tvg-name=\"%s\" tvg-logo=\"%s\" group-title=\"%s\"",
+             channel->id, channel->common.name, channel->logo, channel->group->common.name);
+
+    fprintf( output, ",%s\n", channel->common.name);
+
+    fprintf( output, "%s\n", channel->stream->url);
 #endif
 }
 
@@ -1418,6 +1457,28 @@ void exportM3U( FILE * output )
     btree_ascend( global.tree.channel, NULL, interateChannel, NULL );
     //btree_ascend( global.tree.group,   NULL, interateGroup,   NULL );
 }
+
+/**
+ * @brief QSort-style compare function for Gracenote/TMS channel IDs
+ * @param left
+ * @param right
+ * @param udata
+ * @return
+ */
+int compareTMSChannel( const void * left, const void * right, void * udata )
+{
+    int result;
+
+    (void)udata;
+
+    const tTMSChannel * l = (const tTMSChannel *)left;
+    const tTMSChannel * r = (const tTMSChannel *)right;
+
+    result = strcmp( l->name, r->name );
+
+    return result;
+}
+
 
 /**
  * @brief
@@ -1472,6 +1533,58 @@ int compareGroups( const void * left, const void * right, void * udata )
     return result;
 }
 
+/**
+ * @brief
+ * @param path
+ * @return
+ */
+int processMapping( const char * path )
+{
+    int result = 0;
+    char line[1024];
+
+    FILE * mappingFile = fopen( path, "r" );
+
+    if ( mappingFile == NULL )
+    {
+        result = -errno;
+        fprintf( stderr, "### unable to open \'%s\' (%d: %s)\n", path, errno, strerror(errno) );
+    }
+    else
+    {
+        global.tree.mapping = btree_new( sizeof( tTMSChannel ), 0, compareTMSChannel, NULL );
+        while ( fgets( line, sizeof(line), mappingFile ) != NULL)
+        {
+            if ( line[0] != '\0' && line[0] != '#' )
+            {
+                char * e = strchr( line, '\t' );
+                if ( e != NULL )
+                {
+                    *e = '\0';
+
+                    tTMSChannel * tmschan = calloc(1, sizeof(tTMSChannel));
+                    if (tmschan != NULL)
+                    {
+                        tmschan->name = strdup(line);
+
+                        ++e;                         // point at the second field
+                        e = strchr( e, '\t' );  // end of the second field
+                        if ( e != NULL)
+                        {
+                            ++e; // beginning of field 3 - TMS ID
+                            // strtol stops at first non-numeric character, so don't need to convert tab to null
+                            tmschan->id = strtol(e, NULL, 10);
+
+                            btree_set( global.tree.mapping, tmschan );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return result;
+}
 
 /**
  * @brief
@@ -1505,20 +1618,12 @@ int processFile( const char * path )
 }
 
 
-const char * usage =
-    "Command Line Options\n"
-    "  -d <string>  set {destination} parameter\n"
-    "  -t <string>  set {template} paameter\n"
-    "  -x           pass each output string to the shell to execute\n"
-    "  --           read from stdin\n"
-    "  -0           stdin is null-terminated (also implies '--' option)\n"
-    "  -v <level>   set the level of verbosity (debug info)\n";
-
 /* global arg_xxx structs */
 static struct
 {
     struct arg_lit  * help;
     struct arg_lit  * version;
+    struct arg_file * mapping;
     struct arg_str  * extn;
     struct arg_file * file;
     struct arg_end  * end;
@@ -1544,13 +1649,15 @@ int main( int argc, char * argv[] )
     /* the global arg_xxx structs above are initialised within the argtable */
     void * argtable[] =
         {
-            gOption.help    = arg_litn( NULL, "help", 0, 1,
+            gOption.help    = arg_litn( "h", "help", 0, 1,
                                         "display this help (and exit)" ),
-            gOption.version = arg_litn( NULL, "version", 0, 1,
+            gOption.version = arg_litn( "V", "version", 0, 1,
                                         "display version info (and exit)" ),
             gOption.extn    = arg_strn( "x", "extension", "<extension>", 0, 1,
                                         "set the extension to use for output files" ),
-            gOption.file    = arg_filen(NULL, NULL, "<file>", 1, 999,
+            gOption.mapping = arg_filen("m", "mapping", "<file>", 1, 1,
+                                        "channel mapping file" ),
+            gOption.file    = arg_filen(NULL, NULL, "<file>", 1, 20,
                                         "input files" ),
 
             gOption.end     = arg_end( 20 )
@@ -1583,42 +1690,14 @@ int main( int argc, char * argv[] )
     {
         global.outputFile = NULL;
 
-#if 0
-        const char * extension = ".h";
-        if ( gOption.extn->count != 0 )
-        {
-            extension = *gOption.extn->sval;
-        }
-#endif
         result = 0;
+        for ( int i = 0; i < gOption.mapping->count && result == 0; i++ )
+        {
+            result = processMapping( gOption.mapping->filename[i] );
+        }
         for ( int i = 0; i < gOption.file->count && result == 0; i++ )
         {
-#if 0
-            char output[FILENAME_MAX];
-            strncpy( output, gOption.file->filename[i], sizeof( output ));
-
-
-            char * p = strrchr( output, '.' );
-            if ( p != NULL)
-            {
-                strncpy( p, extension, &output[sizeof( output ) - 1] - p );
-            }
-
-            global.outputFile = fopen( output, "w" );
-            if ( global.outputFile == NULL)
-            {
-                fprintf( stderr, "### unable to open \'%s\' (%d: %s)\n",
-                         output, errno, strerror(errno));
-                result = errno;
-            }
-#endif
-            if ( result == 0 )
-            {
-                result = processFile( gOption.file->filename[i] );
-            }
-#if 0
-            fclose( global.outputFile );
-#endif
+            result = processFile( gOption.file->filename[i] );
         }
     }
 
