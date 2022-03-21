@@ -44,7 +44,7 @@
 #define kHashExtMKV     0x003993a4
 #define kHashExtAVI     0x003ddd89
 #define kHashExtFLV     0x0039bac6
-#define kHashExtM3U8    0x0983bd2a
+#define kHashExtM3U8    0x00881baa
 #define kHashExtTS      0x00015073
 #define kHashPeriod     0x0000002e
 
@@ -696,6 +696,26 @@ bool processCommonHash( tHash hash, tCommon * common )
         {
             common->language = countryToLanguage[ common->country ];
         }
+    } else {
+        switch ( findHash( mapCountrySearch, hash ) )
+        {
+        case kCountryCanada:
+            if ( common->country == kCountryFrance )
+            {
+                common->country = kCountryCanada;
+                common->language = kLanguageFrench;
+            }
+            break;
+        case kCountryFrance:
+            if ( common->country == kCountryCanada )
+            {
+                common->language = kLanguageFrench;
+            }
+            break;
+        default:
+            /* otherwise ignore a second country match */
+            break;
+        }
     }
 
     switch (findHash( mapNameSearch, hash ))
@@ -883,11 +903,11 @@ tStream * processStream( const char * url, tChannel * channel )
                 case kHashExtMKV:
                 case kHashExtAVI:
                 case kHashExtFLV:
-                case kHashExtM3U8:
                     stream->isFile = true;
                     break;
 
-                case kHashExtTS:  /* streams may have a .ts extension */
+                case kHashExtTS:  /* valid streams may have a .ts extension */
+                case kHashExtM3U8: /* ...or a .m3u8 extension */
                 case kHashPeriod: /* some URLs have trailing periods? */
                     break;
 
@@ -1176,6 +1196,7 @@ void importM3Uentry( const char * p )
     const char * xui_id 	 = NULL;
     const char * tvg_id 	 = NULL;
     const char * tvg_name 	 = NULL;
+    const char * tvg_type 	 = NULL;
     const char * tvg_logo 	 = NULL;
     const char * group_title = NULL;
     const char * url 		 = NULL;
@@ -1238,6 +1259,7 @@ void importM3Uentry( const char * p )
                 case kKeywordXUI:    xui_id = value;       break;
                 case kKeywordID:     tvg_id = value;       break;
                 case kKeywordName:   tvg_name = seperatePlus1((char *)value );  break;
+                case kKeywordType:   tvg_type = value;     break;
                 case kKeywordLogo:   tvg_logo = value;     break;
                 case kKeywordGroup:  group_title = value;  break;
                 case kKeywordURL:    url = value;          break;
@@ -1308,6 +1330,7 @@ void importM3Uentry( const char * p )
     }
 #endif
 
+#if 1
     if ( group != NULL )
     {
         group->common.disabled = isGroupDisabled( group );
@@ -1316,6 +1339,7 @@ void importM3Uentry( const char * p )
     {
         channel->common.disabled = isChannelDisabled( channel );
     }
+#endif
 }
 
 /**
@@ -1374,10 +1398,13 @@ long findTMSID( const char * name )
     long result = 0;
     tTMSChannel tmschan;
     tmschan.name = name;
-    tTMSChannel * found  = (tTMSChannel *)btree_get( global.tree.mapping, &tmschan );
+    if ( global.tree.mapping != NULL )
+    {
+        tTMSChannel * found  = (tTMSChannel *)btree_get( global.tree.mapping, &tmschan );
 
-    if ( found != NULL)
-        result = found->id;
+        if ( found != NULL)
+            result = found->id;
+    }
 
     return result;
 }
@@ -1655,7 +1682,7 @@ int main( int argc, char * argv[] )
                                         "display version info (and exit)" ),
             gOption.extn    = arg_strn( "x", "extension", "<extension>", 0, 1,
                                         "set the extension to use for output files" ),
-            gOption.mapping = arg_filen("m", "mapping", "<file>", 1, 1,
+            gOption.mapping = arg_filen("m", "mapping", "<file>", 0, 1,
                                         "channel mapping file" ),
             gOption.file    = arg_filen(NULL, NULL, "<file>", 1, 20,
                                         "input files" ),
