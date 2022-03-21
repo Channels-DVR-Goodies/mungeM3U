@@ -32,6 +32,7 @@ keywords = [
     "ID,tvg-id",
     "Name,tvg-name",
     "Logo,tvg-logo",
+    "Type,tvg-type",
     "Group,group-title",
     "URL,x-url"
 ]
