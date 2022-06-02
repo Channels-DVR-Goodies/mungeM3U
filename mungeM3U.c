@@ -40,12 +40,17 @@
 #include "countryCodes.h"
 #include "usstationdata.h"
 
-#define kHashExtMP4     0x003994c8
-#define kHashExtMKV     0x003993a4
-#define kHashExtAVI     0x003ddd89
-#define kHashExtFLV     0x0039bac6
+#define kHashExtAVI     0x0002dbe9
+#define kHashExtFLV     0x00031386
 #define kHashExtM3U8    0x00881baa
-#define kHashExtTS      0x00015073
+#define kHashExtM4V     0x00033c9e
+#define kHashExtMK      0x000012d7
+#define kHashExtMKV     0x00033844
+#define kHashExtMP4     0x00033ba8
+#define kHashExtMP41    0x00883ec1
+#define kHashExtMPG     0x00033b7f
+#define kHashExtTS      0x0000139b
+#define kHashExtWMV     0x00037548
 #define kHashPeriod     0x0000002e
 
 
@@ -899,10 +904,15 @@ tStream * processStream( const char * url, tChannel * channel )
                 tHash hash = hashString( ext, gNameCharMap );
                 switch ( hash )
                 {
-                case kHashExtMP4:
-                case kHashExtMKV:
                 case kHashExtAVI:
                 case kHashExtFLV:
+                case kHashExtM4V:
+                case kHashExtMK:
+                case kHashExtMKV:
+                case kHashExtMP41:
+                case kHashExtMP4:
+                case kHashExtMPG:
+                case kHashExtWMV:
                     stream->isFile = true;
                     break;
 
